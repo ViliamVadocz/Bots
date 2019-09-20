@@ -338,7 +338,7 @@ def linear_predict(start_pos, start_vel, start_time, seconds) -> Prediction:
 # OTHER:
 
 def special_sauce(x, a):
-    """Modified sigmoid to smooth out steering."""
+    """Modified sigmoid."""
     # Graph showing how it can be used for steering: 
     # https://www.geogebra.org/m/udfp2zcy
     return 2 / (1 + np.exp(a*x)) - 1

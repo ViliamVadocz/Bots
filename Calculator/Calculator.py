@@ -62,6 +62,7 @@ class Calculator(BaseAgent):
         # Handle states.
         self.checkState()
 
+        # For kickoff training.
         #self.handle_match_comms()
 
         # Execute state.

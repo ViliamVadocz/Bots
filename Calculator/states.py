@@ -84,8 +84,6 @@ class Kickoff(BaseState):
 
 class Catch(BaseState):
 
-    # TODO Directed catch if in front of goal to bounce it in.
-
     def __init__(self):
         super().__init__()
         self.target_pos = None
@@ -133,7 +131,7 @@ class Catch(BaseState):
                 self.target_pos = bounce + direction*30
                 self.target_time = times[good_time][0]
 
-                if bounce[0] * team_sign(agent.team) > 4000:
+                if bounce[1] * team_sign(agent.team) > 3500:
                     self.target_pos[0] += 50 * normalise(bounce - orange_inside_goal*team_sign(agent.team))
                 
 
@@ -226,8 +224,16 @@ class PickUp(BaseState):
 
 
 
-
 class Dribble(BaseState):
+
+    #class TurnStatus:
+    #    RIGHT = 1
+    #    LEFT = -1
+    #    STRAIGHT = 0
+
+    def __init__(self):
+        super().__init__()
+        #self.turn_status = self.TurnStatus.STRAIGHT
 
     @staticmethod
     def available(agent):
@@ -248,7 +254,7 @@ class Dribble(BaseState):
 
         # Calculates some angles to determine where to place the offset.
         opponent_goal = orange_inside_goal * team_sign(agent.team)
-        post_offset = 893 - 200
+        post_offset = 893 - 100
 
         l_post = opponent_goal + a3l([post_offset * team_sign(agent.team), 0, 0])
         r_post = opponent_goal - a3l([post_offset * team_sign(agent.team), 0, 0])
@@ -261,6 +267,9 @@ class Dribble(BaseState):
 
         # Special case for this so it works out nicely.
         ball_vel_angle = abs(np.arctan2(agent.ball.vel[1], agent.ball.vel[0])) * team_sign(agent.team)
+          
+        # Calculate goal distance for flicks.
+        goal_distance = np.linalg.norm(opponent_goal - agent.player.pos)
 
         # Steer right is the angle is smaller than the left post.
         if ball_vel_angle < l_post_angle:
@@ -276,34 +285,31 @@ class Dribble(BaseState):
         else:
             local_offset = a3l([-30, 0, 0])
 
-        #if abs(angle) < goal_angle:
-            #local_offset = a3l([-40, 0, 0])
-        #else:
-            #local_offset = a3l([-20, 25 * special_sauce(angle, 10) ,0])
+            # POP
+            if len(agent.opponents) > 0:
+                me = agent.player
+                me_prediction = linear_predict(me.pos, me.vel, agent.game_time, 2)
+                op = agent.opponents[0]
+                op_prediction = linear_predict(op.pos, op.vel, agent.game_time, 2)
+
+                vectors = me_prediction.pos - op_prediction.pos
+                distances = np.sqrt(np.einsum('ij,ij->i', vectors, vectors))
+                collision = distances < 150
+
+                going_opposite = np.sign(np.dot(me.vel, op.vel))
+                if np.count_nonzero(collision) > 0 and going_opposite and goal_distance < 3000 and op_prediction.time[collision][0] - agent.game_time < 0.5:
+                    self.expire = True
+                    agent.state = Flick('POP')
 
         target = world(agent.player.orient_m, bounce, local_offset)
 
         # Drive to the target.
         agent.ctrl = precise(agent, target, time)
 
-        if len(agent.opponents) > 0:
-            me = agent.player
-            me_prediction = linear_predict(me.pos, me.vel, agent.game_time, 2)
-            op = agent.opponents[0]
-            op_prediction = linear_predict(op.pos, op.vel, agent.game_time, 2)
-
-            vectors = me_prediction.pos - op_prediction.pos
-            distances = np.sqrt(np.einsum('ij,ij->i', vectors, vectors))
-            collision = distances < 250
-            if np.count_nonzero(collision) > 0:
-                if op_prediction.time[collision][0] - agent.game_time < 0.5:
-                    self.expire = True
-                    agent.state = Flick('POP')
-
         #relative_ball = local(agent.player.orient_m, agent.player.pos, agent.ball.pos)
         #flick_sweetspot = a3l([40,0,135])
         #flick_distance = np.linalg.norm(flick_sweetspot - relative_ball)
-        #goal_distance = np.linalg.norm(opponent_goal - agent.player.pos)
+        
         
         # Flick if the angle is small and the distance is right.
         #if flick_distance < 15 and (2000 < goal_distance < 5000):
@@ -314,7 +320,7 @@ class Dribble(BaseState):
         agent.renderer.begin_rendering('State')
         agent.renderer.draw_rect_3d(target, 10, 10, True, agent.renderer.cyan())
         agent.renderer.draw_line_3d(agent.ball.pos, agent.ball.pos + agent.ball.vel, agent.renderer.red())
-        agent.renderer.draw_polyline_3d(op_prediction.pos[::60], agent.renderer.red())
+        #agent.renderer.draw_polyline_3d(op_prediction.pos[::60], agent.renderer.red())
         #agent.renderer.draw_string_2d(400, 400, 3, 3, f'{np.count_nonzero(collision)}', agent.renderer.red())
         agent.renderer.end_rendering()
 
@@ -417,14 +423,17 @@ class SimplePush(BaseState):
         target = agent.ball.pos + in_direction_component + perpendicular_component
 
         agent.ctrl = simple(agent, target)
+        agent.ctrl.throttle, agent.ctrl.boost = speed_controller(np.linalg.norm(agent.player.vel), np.linalg.norm(agent.ball.vel) + 500, agent.dt)
 
+        # Rendering.
         agent.renderer.begin_rendering('State')
         agent.renderer.draw_rect_3d(target, 10, 10, True, agent.renderer.cyan())
         agent.renderer.end_rendering()
 
         self.expired = True
         super().execute(agent)
-        
+
+
 
 class GetBoost(BaseState):
     @staticmethod
@@ -432,7 +441,7 @@ class GetBoost(BaseState):
         if agent.player.boost < 30:
             ball_distance = np.linalg.norm(agent.ball.pos - agent.player.pos)
             for pad in agent.l_pads:
-                if pad.active and np.linalg.norm(pad.pos - agent.player.pos) + 1000 < ball_distance:
+                if pad.active and np.linalg.norm(pad.pos - agent.player.pos) + 700 < ball_distance:
                     return True
         return False
 

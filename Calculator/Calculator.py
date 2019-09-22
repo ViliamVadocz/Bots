@@ -9,17 +9,13 @@ import data
 from utils import np, a3l, normalise, local, cap, team_sign, special_sauce
 from states import Idle, Kickoff, Catch, PickUp, Dribble, SimplePush, GetBoost
 
-#from queue import Empty
-#from rlbot.matchcomms.common_uses.reply import reply_to
-#from rlbot.matchcomms.common_uses.set_attributes_message import handle_set_attributes_message
+import input_hud
 
 class Calculator(BaseAgent):
 
     def initialize_agent(self):
         self.need_setup = True
         self.state = Idle()
-
-        self.kickoff = False
 
     def checkState(self):
         if self.state.expired:
@@ -35,18 +31,6 @@ class Calculator(BaseAgent):
                 self.state = GetBoost()
             else:
                 self.state = SimplePush()
-
-    def handle_match_comms(self):
-        try:
-            msg = self.matchcomms.incoming_broadcast.get_nowait()
-        except Empty:
-            return
-        if handle_set_attributes_message(msg, self, allowed_keys=['kickoff']):
-            reply_to(self.matchcomms, msg)
-            self.state = Kickoff()
-            self.kickoff = False
-        else:
-            self.logger.debug(f'Unhandled message: {msg}')
         
     def get_output(self, packet: GameTickPacket) -> SimpleControllerState:
         # Runs setup.
@@ -71,12 +55,15 @@ class Calculator(BaseAgent):
 
         # Render.
         self.render(self.renderer)
+        input_hud.display_float(self.renderer, self.ctrl.steer, 'steer', 500, 200)
+        input_hud.display_float(self.renderer, self.ctrl.throttle, 'throttle', 500, 300)
+        input_hud.display_xyfloats(self.renderer, self.ctrl.pitch, self.ctrl.yaw, 'pitch & yaw', 800, 200)
 
         return self.ctrl 
 
 
     def render(self, r):
         r.begin_rendering()
-        r.draw_string_2d(10, 10, 2, 2, f'{self.state.__class__.__name__}', r.white())
-        r.draw_polyline_3d(self.ball.predict.pos[:120:5], r.pink())
+        r.draw_string_2d(150, 10, 2, 2, f'{self.state.__class__.__name__}', r.white())
+        r.draw_polyline_3d(self.ball.predict.pos[:120:10], r.pink())
         r.end_rendering()

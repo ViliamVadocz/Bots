@@ -48,11 +48,11 @@ class Kickoff(BaseState):
 
     @staticmethod
     def available(agent):
-        return agent.ko_pause and agent.r_active
+        return agent.ball.pos[0] == 0 and agent.ball.pos[1] == 0
 
     def execute(self, agent):
         # If the kickoff pause ended and the ball has been touched recently, expire.
-        if (not agent.ko_pause) and (agent.ball.last_touch.time_seconds + 0.1 > agent.game_time):
+        if agent.ball.pos[0] != 0 or agent.ball.pos[1] != 0:
             self.expired = True
 
         if self.kickoff_pos is None:
@@ -132,7 +132,7 @@ class Catch(BaseState):
                 self.target_time = times[good_time][0]
 
                 if bounce[1] * team_sign(agent.team) > 3500:
-                    self.target_pos[0] += 50 * normalise(bounce - orange_inside_goal*team_sign(agent.team))
+                    self.target_pos += 50 * normalise(bounce - orange_inside_goal*team_sign(agent.team))
                 
 
         # Expires state if too late.
@@ -296,7 +296,7 @@ class Dribble(BaseState):
                 distances = np.sqrt(np.einsum('ij,ij->i', vectors, vectors))
                 collision = distances < 150
 
-                going_opposite = np.sign(np.dot(me.vel, op.vel))
+                going_opposite = -np.sign(np.dot(me.vel, op.vel))
                 if np.count_nonzero(collision) > 0 and going_opposite and goal_distance < 3000 and op_prediction.time[collision][0] - agent.game_time < 0.5:
                     self.expire = True
                     agent.state = Flick('POP')
@@ -423,7 +423,7 @@ class SimplePush(BaseState):
         target = agent.ball.pos + in_direction_component + perpendicular_component
 
         agent.ctrl = simple(agent, target)
-        agent.ctrl.throttle, agent.ctrl.boost = speed_controller(np.linalg.norm(agent.player.vel), np.linalg.norm(agent.ball.vel) + 500, agent.dt)
+        agent.ctrl.boost = False
 
         # Rendering.
         agent.renderer.begin_rendering('State')

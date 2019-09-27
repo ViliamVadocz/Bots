@@ -19,7 +19,7 @@ class DribbleDrop(TrainingExercise):
         car_state = CarState(
             boost_amount=100,
             physics=Physics(
-                location=Vector3(rng.n11()*1000, -4250, 20),
+                location=Vector3(rng.n11()*1000, 0, 20),
                 velocity=Vector3(0, 0, 0),
                 rotation=Rotator(0, pi / 2, 0),
                 angular_velocity=Vector3(0, 0, 0)
@@ -28,7 +28,7 @@ class DribbleDrop(TrainingExercise):
 
         ball_state = BallState(
             Physics(
-                location=Vector3(0, -2500, 1000),
+                location=Vector3(0, 1000, 1000),
                 velocity=Vector3(0, -500, 500)
                 )
             )

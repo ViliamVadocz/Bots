@@ -3,7 +3,6 @@
 from rlbot.utils.game_state_util import Vector3, Rotator
 
 import numpy as np
-from scipy.interpolate import interp1d
 
 from dataclasses import dataclass
 
@@ -69,7 +68,7 @@ class Car:
         
         self.orient_m   : np.ndarray    = np.identity(3)
         self.turn_r     : float         = 0.0
-        self.predict    : dict          = []
+        self.predict    : Prediction    = None
 
 class Ball:
     """Houses the processed data from the packet for the ball.
@@ -97,7 +96,7 @@ class Ball:
         self.vel        : np.ndarray    = np.zeros(3)
         self.ang_vel    : np.ndarray    = np.zeros(3)
         self.predict    : Prediction    = Prediction(np.zeros((360,3)),np.zeros((360,3)),np.zeros((360,1)))
-        self.last_touch : dict          = None
+        self.last_touch                 = None
 
 class BoostPad:
     """Houses the processed data from the packet fot the boost pads.

@@ -103,7 +103,7 @@ class Catch(BaseState):
 
         else:
             return False
-        
+
     def execute(self, agent):
         super().execute(agent)
 
@@ -226,10 +226,6 @@ class PickUp(BaseState):
 
 class Dribble(BaseState):
 
-    def __init__(self):
-        super().__init__()
-        self.prev_angles = np.zeros(15)
-
     @staticmethod
     def available(agent):
         return agent.ball.pos[2] > 100 and np.linalg.norm(agent.ball.pos - agent.player.pos) < 300
@@ -273,15 +269,13 @@ class Dribble(BaseState):
         
         # Calculates the relative position of the ball.
         relative_ball = local(agent.player.orient_m, agent.player.pos, agent.ball.pos)
+        #print(relative_ball)
+        desired_ball = a3l([30, 100 * special_sauce(angle_diff, -3), 130])
 
-        self.prev_angles[:-1] = self.prev_angles[1:]
-        self.prev_angles[-1] = angle_diff
-        derivative = (self.prev_angles[-1] - self.prev_angles[0]) / (15*(1/120)) # ALSO TEMPORARY
+        difference = relative_ball - desired_ball
+        print(difference)
 
-        local_offset = a3l([
-            -20 + 20 * special_sauce(abs(angle_diff), -3),
-            40 * special_sauce(angle_diff, 5) + 20 * special_sauce(derivative, 5),
-            0]) # TEMPORARY PLS FIX
+        local_offset = a3l([difference[0], difference[1], 0])
         # TODO Make goal relative position
         # TODO Use PD controller
         # TODO Look at the change in angle over time and adjust the local offset.
@@ -303,73 +297,17 @@ class Dribble(BaseState):
             going_opposite = np.sign(np.dot(me.vel, op.vel)) == -1
             if np.count_nonzero(collision) > 0 and going_opposite and goal_distance < 5000 and np.linalg.norm(agent.player.vel) > 1000 and op_prediction.time[collision][0] - agent.game_time < 0.5:
                 self.expire = True
-                agent.state = Flick('POP')
-
-        '''
-        # Different offsets based on previous state.
-        if agent.ball.last_touch.time_seconds + 0.1 > agent.game_time:
-            # Steer right is the angle is smaller than the left post.
-            if ball_vel_angle < l_post_angle:
-                angle_diff = l_post_angle - ball_vel_angle
-
-                # More extreme offset if changing direction of turn.
-                if self.mini_state == self.Steering.LEFT:
-                    local_offset = a3l([0, -100 * special_sauce(angle_diff, -10), 0])
-                elif self.mini_state == self.Steering.STRAIGHT:
-                    local_offset = a3l([-10, -45 * special_sauce(angle_diff, -10), 0])
-                else:
-                    local_offset = a3l([-20, -30 * special_sauce(angle_diff, -10), 0])
-
-                self.mini_state = self.Steering.RIGHT
-
-            # Steer left if the angle is smaller than the right post.
-            elif ball_vel_angle > r_post_angle:
-                angle_diff = ball_vel_angle - r_post_angle
-
-                # More extreme offset if changing direction of turn.
-                if self.mini_state == self.Steering.RIGHT:
-                    local_offset = a3l([0, 100 * special_sauce(angle_diff, -10), 0])
-                elif self.mini_state == self.Steering.STRAIGHT:
-                    local_offset = a3l([-10, 45 * special_sauce(angle_diff, -10), 0])
-                else:
-                    local_offset = a3l([-20, 30 * special_sauce(angle_diff, -10), 0])
-
-                self.mini_state = self.Steering.LEFT
-
-            # Else speed up forward.
-            else:
-                if self.mini_state == self.Steering.LEFT:
-                    local_offset = a3l([0, -100, 0])
-                elif self.mini_state == self.Steering.RIGHT:
-                    local_offset = a3l([0, 100, 0])
-                else:
-                    local_offset = a3l([-30, 0, 0])
-
-                self.mini_state = self.Steering.STRAIGHT
-
-                
-        '''    
+                agent.state = Flick('POP')  
 
         target = world(agent.player.orient_m, bounce, local_offset)
 
         # Drive to the target.
         agent.ctrl = precise(agent, target, time)
 
-        '''
-        relative_ball = local(agent.player.orient_m, agent.player.pos, agent.ball.pos)
-        flick_sweetspot = a3l([40,0,135])
-        flick_distance = np.linalg.norm(flick_sweetspot - relative_ball)
-        
-        
-        # Flick if the angle is small and the distance is right.
-        if flick_distance < 15 and (2000 < goal_distance < 5000):
-            self.expired = True
-            agent.state = Flick('BACKFLICK')
-        '''
-
         # Rendering.
         agent.renderer.begin_rendering('State')
         agent.renderer.draw_rect_3d(target, 10, 10, True, agent.renderer.cyan())
+        agent.renderer.draw_rect_3d(world(agent.player.orient_m, agent.player.pos, desired_ball), 10, 10, True, agent.renderer.red())
         #agent.renderer.draw_line_3d(agent.ball.pos, agent.ball.pos + agent.ball.vel, agent.renderer.red())
         #agent.renderer.draw_string_2d(800,100,2,2,f'{local_offset}',agent.renderer.red())
         #agent.renderer.draw_polyline_3d(op_prediction.pos[::60], agent.renderer.red())

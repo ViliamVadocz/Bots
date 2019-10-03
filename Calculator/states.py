@@ -204,10 +204,10 @@ class PickUp(BaseState):
             perpendicular_to_vel = np.cross(ball_vel_direction, a3l([0,0,1]))
 
             # Calculating component lengths and multiplying with direction.
-            perpendicular_component =  120 * perpendicular_to_vel * np.sign(np.dot(perpendicular_to_vel, agent.ball.pos - opponent_goal))
+            perpendicular_component =  130 * perpendicular_to_vel * np.sign(np.dot(perpendicular_to_vel, agent.ball.pos - opponent_goal))
 
             # Combine components to get a drive target.
-            target = agent.ball.pos + agent.ball.vel/20 + perpendicular_component
+            target = agent.ball.pos + perpendicular_component #+ agent.ball.vel/20
 
             if np.linalg.norm(target - agent.player.pos) < 80:
                 self.ready_to_cut = True
@@ -246,39 +246,26 @@ class Dribble(BaseState):
         # Calculates some angles to determine where to place the offset.
         opponent_goal = orange_inside_goal * team_sign(agent.team)
 
-        '''
-        post_offset = 893 - 100
-        l_post = opponent_goal + a3l([post_offset * team_sign(agent.team), 0, 0])
-        r_post = opponent_goal - a3l([post_offset * team_sign(agent.team), 0, 0])
-        ball_to_l_post = l_post - agent.ball.pos
-        ball_to_r_post = r_post - agent.ball.pos
-
-        # Angles measured clockwise starting from +x direction.
-        l_post_angle = np.arctan2(ball_to_l_post[1], ball_to_l_post[0])
-        r_post_angle = np.arctan2(ball_to_r_post[1], ball_to_r_post[0])
-        '''
-
+        # 2D angle of ball velocity clockwise from +x axis.
+        # Absolute flips it to the positive side.
         ball_vel_angle = abs(np.arctan2(agent.ball.vel[1], agent.ball.vel[0]))
 
+        # 2D angle of from ball to goal measured clockwise from +x axis.
         ball_to_goal = (opponent_goal - agent.ball.pos) * a3l([1,1,0])        
         goal_angle = abs(np.arctan2(ball_to_goal[1], ball_to_goal[0]))
 
-        # Angle between ball velocity and vector to goal. Positive is counterclockwise.
+        # Angle from goal angle to ball vel angle. Counterclockwise is positive.
         angle_diff = goal_angle - ball_vel_angle
         angle_diff *= team_sign(agent.team)
         
         # Calculates the relative position of the ball.
         relative_ball = local(agent.player.orient_m, agent.player.pos, agent.ball.pos)
-        #print(relative_ball)
-        desired_ball = a3l([30, 100 * special_sauce(angle_diff, -3), 130])
-
+        # Creates a desired position for the ball based on angle difference.
+        desired_ball = a3l([35, 100 * special_sauce(angle_diff, -3), 125])
+        # Calculated difference between relative ball position and desired ball position.
+        # Used to determine the offset from the predicted ball position to drive towards.
         difference = relative_ball - desired_ball
-        print(difference)
-
-        local_offset = a3l([difference[0], difference[1], 0])
-        # TODO Make goal relative position
-        # TODO Use PD controller
-        # TODO Look at the change in angle over time and adjust the local offset.
+        local_offset = a3l([difference[0], difference[1]*2, 0])
 
         # Calculate goal distance for flicks.
         goal_distance = np.linalg.norm(opponent_goal - agent.player.pos)
@@ -295,7 +282,7 @@ class Dribble(BaseState):
             collision = distances < 150
 
             going_opposite = np.sign(np.dot(me.vel, op.vel)) == -1
-            if np.count_nonzero(collision) > 0 and going_opposite and goal_distance < 5000 and np.linalg.norm(agent.player.vel) > 1000 and op_prediction.time[collision][0] - agent.game_time < 0.5:
+            if np.count_nonzero(collision) > 0 and going_opposite and (1000 < goal_distance < 7000) and np.linalg.norm(agent.player.vel) > 1000 and op_prediction.time[collision][0] - agent.game_time < 0.5:
                 self.expire = True
                 agent.state = Flick('POP')  
 

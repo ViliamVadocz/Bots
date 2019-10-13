@@ -2,7 +2,7 @@
 
 from rlbot.agents.base_agent import SimpleControllerState
 
-from utils import np, a3l, local, world, angle_between_vectors, normalise, cap, team_sign, linear_predict, special_sauce
+from utils import np, a3l, local, world, angle_between_vectors, normalise, cap, aerial_input_generate, team_sign, linear_predict, special_sauce
 
 orange_inside_goal = a3l([0, 5150, 0])
 
@@ -105,7 +105,6 @@ class Catch(BaseState):
             return False
 
     def execute(self, agent):
-        super().execute(agent)
 
         # Checks if the ball has been hit recently.
         if agent.ball.last_touch.time_seconds + 0.1 > agent.game_time:
@@ -132,7 +131,7 @@ class Catch(BaseState):
                 self.target_time = times[good_time][0]
 
                 if bounce[1] * team_sign(agent.team) > 3500:
-                    self.target_pos += 50 * normalise(bounce - orange_inside_goal*team_sign(agent.team))
+                    self.target_pos += 80 * normalise(bounce - orange_inside_goal*team_sign(agent.team))
                 
 
         # Expires state if too late.
@@ -193,7 +192,7 @@ class PickUp(BaseState):
         if agent.ball.pos[2] > 100:
             self.expired = True
 
-        if self.ready_to_cut:
+        if self.ready_to_cut or np.dot(agent.ball.vel, normalise(agent.player.vel)) < 700:
             target = agent.ball.pos
 
         else:
@@ -207,7 +206,7 @@ class PickUp(BaseState):
             perpendicular_component =  130 * perpendicular_to_vel * np.sign(np.dot(perpendicular_to_vel, agent.ball.pos - opponent_goal))
 
             # Combine components to get a drive target.
-            target = agent.ball.pos + perpendicular_component #+ agent.ball.vel/20
+            target = agent.ball.pos + perpendicular_component + agent.ball.vel/20
 
             if np.linalg.norm(target - agent.player.pos) < 80:
                 self.ready_to_cut = True
@@ -225,6 +224,10 @@ class PickUp(BaseState):
 
 
 class Dribble(BaseState):
+
+    def __init__(self):
+        super().__init__()
+        self.timer = 0.0
 
     @staticmethod
     def available(agent):
@@ -265,7 +268,7 @@ class Dribble(BaseState):
         # Calculated difference between relative ball position and desired ball position.
         # Used to determine the offset from the predicted ball position to drive towards.
         difference = relative_ball - desired_ball
-        local_offset = a3l([difference[0], difference[1]*2, 0])
+        local_offset = a3l([difference[0], difference[1]*2, 0]) * special_sauce(self.timer, -1)
 
         # Calculate goal distance for flicks.
         goal_distance = np.linalg.norm(opponent_goal - agent.player.pos)
@@ -283,8 +286,13 @@ class Dribble(BaseState):
 
             going_opposite = np.sign(np.dot(me.vel, op.vel)) == -1
             if np.count_nonzero(collision) > 0 and going_opposite and (1000 < goal_distance < 7000) and np.linalg.norm(agent.player.vel) > 1000 and op_prediction.time[collision][0] - agent.game_time < 0.5:
-                self.expire = True
+                self.expired = True
                 agent.state = Flick('POP')  
+            
+        # TEMP code
+        #elif (2000 < goal_distance < 7000) and np.linalg.norm(agent.player.vel) > 1000 and angle_diff < 0.3 and abs(difference[0]) < 20:
+        #    self.expired = True
+        #    agent.state = AirDribble()    
 
         target = world(agent.player.orient_m, bounce, local_offset)
 
@@ -301,11 +309,13 @@ class Dribble(BaseState):
         #agent.renderer.draw_string_2d(400, 400, 3, 3, f'{np.count_nonzero(collision)}', agent.renderer.red())
         agent.renderer.end_rendering()
 
+        self.timer += agent.dt
         super().execute(agent)
 
 
 
 class Flick(BaseState):
+
     def __init__(self, flick_type):
         super().__init__()
         self.flick_type = flick_type
@@ -353,8 +363,49 @@ class Flick(BaseState):
         super().execute(agent)
 
 
+class AirDribble(BaseState):
+
+    def __init__(self):
+        super().__init__()
+        self.timer = 0.0
+
+    def execute(self, agent):
+        if self.timer < 0.1:
+            agent.ctrl.pitch = 1
+            agent.ctrl.boost = True
+            agent.ctrl.jump = True
+        elif self.timer < 0.2:
+            agent.ctrl.pitch = 1
+            agent.ctrl.boost = True
+            agent.ctrl.jump = False
+        elif self.timer < 0.3:
+            agent.ctrl.pitch = 0
+            agent.ctrl.boost = True
+            agent.ctrl.jump = True
+        elif self.timer < 0.5:
+            agent.ctrl.pitch = 1
+            agent.ctrl.boost = True
+            agent.ctrl.jump = False
+        else:
+            forward = normalise(agent.ball.pos - agent.player.pos)
+            right = np.cross(forward, a3l([0,0,1]))
+            up = np.cross(right, forward)
+
+            desired_orient = np.vstack((forward, right, up)).T
+
+            agent.ctrl.roll, agent.ctrl.pitch, agent.ctrl.yaw = \
+                aerial_input_generate(agent.player.orient_m, desired_orient, agent.player.ang_vel, agent.dt)
+            agent.ctrl.boost = True
+
+            if agent.player.wheel_c:
+                self.expired = True
+
+        self.timer += agent.dt
+        super().execute(agent)
+
 
 class Dodge(BaseState):
+
     def __init__(self, target_pos):
         super().__init__()
         self.target_pos = target_pos
@@ -413,6 +464,7 @@ class SimplePush(BaseState):
 
 
 class GetBoost(BaseState):
+
     @staticmethod
     def available(agent):
         if agent.player.boost < 30:

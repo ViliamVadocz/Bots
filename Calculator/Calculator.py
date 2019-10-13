@@ -9,8 +9,6 @@ import data
 from utils import np, a3l, normalise, local, cap, team_sign, special_sauce
 from states import Idle, Kickoff, Catch, PickUp, Dribble, SimplePush, GetBoost
 
-#import input_hud
-
 class Calculator(BaseAgent):
 
     def initialize_agent(self):
@@ -18,6 +16,7 @@ class Calculator(BaseAgent):
         self.state = Idle()
 
     def checkState(self):
+        # TODO Check if near active pad, take it
         if self.state.expired:
             if Kickoff.available(self):
                 self.state = Kickoff()
@@ -46,9 +45,6 @@ class Calculator(BaseAgent):
         # Handle states.
         self.checkState()
 
-        # For kickoff training.
-        #self.handle_match_comms()
-
         # Execute state.
         if not self.state.expired:
             self.state.execute(self)
@@ -56,9 +52,6 @@ class Calculator(BaseAgent):
 
         # Render.
         self.render(self.renderer)
-        #input_hud.display_float(self.renderer, self.ctrl.steer, 'steer', 500, 200)
-        #input_hud.display_float(self.renderer, self.ctrl.throttle, 'throttle', 500, 300)
-        #input_hud.display_xyfloats(self.renderer, self.ctrl.pitch, self.ctrl.yaw, 'pitch & yaw', 800, 200)
 
         return self.ctrl 
 

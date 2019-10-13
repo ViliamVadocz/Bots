@@ -301,6 +301,53 @@ def world(A : np.ndarray, p0 : np.ndarray, p1 : np.ndarray) -> np.ndarray:
 
 # ROCKET LEAGUE SPECIFIC FUNCTIONS:
 
+omega_max : float= 5.5
+T_r : float = -36.07956616966136 # Torque coefficient for roll.
+T_p : float = -12.14599781908070 # Torque coefficient for pitch.
+T_y : float =   8.91962804287785 # Torque coefficient for yaw.
+D_r : float =  -4.47166302201591 # Drag coefficient for roll.
+D_p : float = -2.798194258050845 # Drag coefficient for pitch.
+D_y : float = -1.886491900437232 # Drag coefficient for yaw.
+
+def aerial_input_generate(omega_start : np.ndarray, omega_end : np.ndarray, theta_start : np.ndarray, dt : float):
+    """Calculate the inputs for an aerial turn.
+    
+    Arguments:
+        omega_start {np.ndarray} -- Starting orientation matrix.
+        omega_end {np.ndarray} -- Ending orientation matrix.
+        theta_start {np.ndarray} -- Starting angular velocity.
+        dt {float} -- Delta time.
+    
+    Returns:
+        roll, pitch, yaw {floats} -- Generated input.
+    """
+    # Net torque in world coordinates.
+    tau = (omega_end - omega_start) / dt
+
+    # Ner torque in local coordinates.
+    tau = np.dot(theta_start.T, tau)
+
+    # Beggining-step angular velocity, in local coordinates.
+    omega_local = np.dot(theta_start.T, omega_start)
+
+    rhs = np.zeros(3)
+    rhs[0] = tau[0] - D_r * omega_local[0]
+    rhs[1] = tau[1] - D_p * omega_local[1]
+    rhs[2] = tau[2] - D_y * omega_local[2]
+
+    # User inputs: roll, pitch, yaw.
+    roll    = rhs[0] / T_r
+    pitch   = rhs[1] / (T_p + np.sign(rhs[1]) * omega_local[1] * D_p) 
+    yaw     = rhs[2] / (T_y - np.sign(rhs[2]) * omega_local[2] * D_y)
+
+    # Ensure that values are between -1 and 1.
+    roll    = cap(roll, -1, 1)
+    pitch   = cap(pitch, -1, 1)
+    yaw     = cap(yaw, -1, 1)
+
+    return roll, pitch, yaw
+
+
 def team_sign(team : int) -> int:
     """Gives the sign for a calculation based on team.
     
@@ -325,7 +372,19 @@ def turn_r(v : np.ndarray) -> float:
     s = np.linalg.norm(v)
     return -6.901E-11 * s**4 + 2.1815E-07 * s**3 - 5.4437E-06 * s**2 + 0.12496671 * s + 157
 
+
 def linear_predict(start_pos, start_vel, start_time, seconds) -> Prediction:
+    """Predicts motion of object in a straight line.
+    
+    Arguments:
+        start_pos {np.ndarray} -- Current position.
+        start_vel {np.ndarray} -- Current velocity.
+        start_time {float} -- Current time.
+        seconds {float} -- Time for which to predict.
+    
+    Returns:
+        Prediction -- linear prediction, 60 tps.
+    """
     time = np.linspace(0, seconds, 60*seconds)[:,np.newaxis]
     pos = start_pos + time * start_vel
     vel = np.ones_like(time) * start_vel

@@ -45,17 +45,17 @@ class DribbleRoll(TrainingExercise):
         car_state = CarState(
             boost_amount=100,
             physics=Physics(
-                location=Vector3(-2000+500*rng.n11(), -4250, 20),
-                velocity=Vector3(1400, 0, 0),
-                rotation=Rotator(0, 0, 0),
+                location=Vector3(0, -4500, 20),
+                velocity=Vector3(0, 0, 0),
+                rotation=Rotator(0, pi/2, 0),
                 angular_velocity=Vector3(0, 0, 0)
                 )
             )
 
         ball_state = BallState(
             Physics(
-                location=Vector3(-1700, -4000, 100),
-                velocity=Vector3(1500+500*rng.n11(), 150+50*rng.n11(), 0)
+                location=Vector3(0, -4000, 100),
+                velocity=Vector3(700*rng.n11(), 700*rng.n11(), 0)
                 )
             )
 
@@ -64,7 +64,7 @@ class DribbleRoll(TrainingExercise):
 
 
 def make_default_playlist() -> Playlist:
-    exercises = [DribbleDrop('Dribble Drop'), DribbleRoll('Dribble Roll')]
+    exercises = [DribbleRoll('Dribble Roll')]
 
     for ex in exercises:
         ex.match_config.player_configs = [

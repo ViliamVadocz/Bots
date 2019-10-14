@@ -7,7 +7,7 @@ from rlbot.utils.structures.game_data_struct import GameTickPacket
 # Local file imports.
 import data
 from utils import np, a3l, normalise, local, cap, team_sign, special_sauce
-from states import Idle, Kickoff, Catch, PickUp, Dribble, SimplePush, GetBoost
+from states import Idle, Kickoff, Catch, PickUp, Dribble, SimplePush, GetBoost, Dodge
 
 class Calculator(BaseAgent):
 
@@ -17,6 +17,8 @@ class Calculator(BaseAgent):
 
     def checkState(self):
         # TODO Check if near active pad, take it
+        if not (isinstance(self.state, Kickoff) or isinstance(self.state, Dodge)) and Kickoff.available(self):
+            self.state = Kickoff()
         if self.state.expired:
             if Kickoff.available(self):
                 self.state = Kickoff()

@@ -4,7 +4,8 @@ from rlbot.agents.base_agent import SimpleControllerState
 
 from utils import np, a3l, local, world, angle_between_vectors, normalise, cap, aerial_input_generate, team_sign, linear_predict, special_sauce
 
-orange_inside_goal = a3l([0, 5150, 0])
+blue_inside_goal = a3l([0, -5120, 0])
+orange_inside_goal = a3l([0, 5120, 0])
 
 kickoff_positions = np.array([
     [-1952, -2464, 0], # r_corner
@@ -70,7 +71,7 @@ class Kickoff(BaseState):
 
         # Go for small boost pad on back kickoffs.
         if self.kickoff_pos in (2,3) and distance > 3200:
-            target = a3l([0, -2816, 70]) * team_sign(agent.team)
+            target = a3l([0, -2700, 70]) * team_sign(agent.team)
         else:
             target = agent.ball.pos
 
@@ -179,8 +180,8 @@ class PickUp(BaseState):
         # Calculates some angles to determine where to place the offset.
         opponent_goal = orange_inside_goal * team_sign(agent.team)
         distance_to_goal = np.linalg.norm(agent.ball.pos - opponent_goal)
-        distance_to_ball = np.linalg.norm(agent.ball.pos - agent.player.pos )
-        good_distance = distance_to_goal > 4000 and distance_to_ball < 1000
+        distance_to_ball = np.linalg.norm(agent.ball.pos - agent.player.pos)
+        good_distance = distance_to_goal > 4000 and distance_to_ball < 500
 
         return on_ground and good_distance
 
@@ -192,7 +193,10 @@ class PickUp(BaseState):
         if agent.ball.pos[2] > 100:
             self.expired = True
 
-        if self.ready_to_cut or np.dot(agent.ball.vel, normalise(agent.player.vel)) < 700:
+        # Goes for the ball instead if conditions are met.
+        close_to_own_goal = np.linalg.norm(agent.ball.pos - blue_inside_goal*team_sign(agent.team)) < 1200
+        too_slow = np.dot(agent.ball.vel, normalise(agent.player.vel)) < 700
+        if self.ready_to_cut or too_slow and not close_to_own_goal:
             target = agent.ball.pos
 
         else:
@@ -203,7 +207,8 @@ class PickUp(BaseState):
             perpendicular_to_vel = np.cross(ball_vel_direction, a3l([0,0,1]))
 
             # Calculating component lengths and multiplying with direction.
-            perpendicular_component =  130 * perpendicular_to_vel * np.sign(np.dot(perpendicular_to_vel, agent.ball.pos - opponent_goal))
+            vel_distance = 90 + 30*special_sauce(np.linalg.norm(agent.ball.vel), -0.002)
+            perpendicular_component =  vel_distance * perpendicular_to_vel * np.sign(np.dot(perpendicular_to_vel, agent.ball.pos - opponent_goal))
 
             # Combine components to get a drive target.
             target = agent.ball.pos + perpendicular_component + agent.ball.vel/20
@@ -264,7 +269,7 @@ class Dribble(BaseState):
         # Calculates the relative position of the ball.
         relative_ball = local(agent.player.orient_m, agent.player.pos, agent.ball.pos)
         # Creates a desired position for the ball based on angle difference.
-        desired_ball = a3l([35, 100 * special_sauce(angle_diff, -3), 125])
+        desired_ball = a3l([35, 100 * special_sauce(angle_diff*1.2, -3), 125])
         # Calculated difference between relative ball position and desired ball position.
         # Used to determine the offset from the predicted ball position to drive towards.
         difference = relative_ball - desired_ball

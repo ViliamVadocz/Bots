@@ -47,9 +47,24 @@ class KickoffExercise(TrainingExercise):
 
     def on_briefing(self):
         """Sends a match comm to let your bot know a new kickoff is starting."""
+
+        """ Uncomment this first part if you want to use match comms.
         _ = send_and_wait_for_replies(self.get_matchcomms(), [
             make_set_attributes_message(0, {'kickoff': True}),
         ])
+        """
+
+        """ Put this in your bot to recieve the match comms:
+        try:
+            msg = self.matchcomms.incoming_broadcast.get_nowait()
+        except Empty:
+            return
+        if handle_set_attributes_message(msg, self, allowed_keys=['kickoff']):
+            reply_to(self.matchcomms, msg)
+        else:
+            self.logger.debug(f'Unhandled message: {msg}')
+        """
+        pass
 
     def make_game_state(self, rng: SeededRandomNumberGenerator) -> GameState:
 
@@ -57,7 +72,10 @@ class KickoffExercise(TrainingExercise):
         assert num_players == len(self.spawns), 'Number of players does not match the number of spawns.'
 
         car_states = {}
-        for index in range(num_players):
+        for index, player in enumerate(self.match_config.player_configs):
+            assert (player.team == 0) == (index < len(self.blue_spawns)), \
+            f"Blue/Orange players in match_config don't match the Blue/Orange spawns: Expected {len(self.blue_spawns)} blue player_configs, followed by {len(self.orange_spawns)} orange ones."
+            
             car_states[index] = CarState(
                 boost_amount=33,
                 physics=Physics(
@@ -95,11 +113,11 @@ def make_default_playlist() -> Playlist:
     ]
 
     for ex in exercises:
-        # The length of players in the match_config needs to match the number or spawns.
+        # The number of players in the match_config needs to match the number of spawns.
 
-        # Replace with path to your bot or bots. 
+        # Replace with path to your bot. 
         ex.match_config.player_configs = \
-        [PlayerConfig.bot_config(Path(__file__).absolute().parent.parent / 'Calculator.cfg', Team.BLUE) for _ in ex.blue_spawns] + \
-        [PlayerConfig.bot_config(Path(__file__).absolute().parent.parent / 'Calculator.cfg', Team.ORANGE) for _ in ex.orange_spawns]
+        [PlayerConfig.bot_config(Path('E:\Documents\RLBot\ViliamVadocz\Calculator\Calculator.cfg'), Team.BLUE) for _ in ex.blue_spawns] + \
+        [PlayerConfig.bot_config(Path('E:\Documents\RLBot\ViliamVadocz\Calculator\Calculator.cfg'), Team.ORANGE) for _ in ex.orange_spawns]
 
     return exercises

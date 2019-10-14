@@ -45,9 +45,9 @@ class DribbleRoll(TrainingExercise):
         car_state = CarState(
             boost_amount=100,
             physics=Physics(
-                location=Vector3(0, -4500, 20),
+                location=Vector3(0, -3500, 20),
                 velocity=Vector3(0, 0, 0),
-                rotation=Rotator(0, pi/2, 0),
+                rotation=Rotator(0, -pi/2, 0),
                 angular_velocity=Vector3(0, 0, 0)
                 )
             )

@@ -80,7 +80,7 @@ class Calculator(BaseAgent):
             
         # If got scored on less than 20 seconds after a fake kickoff, don't do it again.
         if packet.teams[abs(self.team - 1)].score > self.enemy_goals:
-            if self.went_for_fake_ko != -1 and self.went_for_fake_ko - self.game_time < 20.0:
+            if self.went_for_fake_ko != -1 and self.game_time - self.went_for_fake_ko < 20.0:
                 self.fake_kickoff_works = False
         self.enemy_goals = packet.teams[abs(self.team - 1)].score
 

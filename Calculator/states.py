@@ -46,6 +46,7 @@ class Kickoff(BaseState):
     def __init__(self):
         super().__init__()
         self.kickoff_pos = None
+        self.dodge = None
 
     @staticmethod
     def available(agent):
@@ -65,17 +66,18 @@ class Kickoff(BaseState):
         distance = np.linalg.norm(agent.ball.pos - agent.player.pos)
         ETA = distance / np.linalg.norm(agent.player.vel)
 
-        if ETA < 0.4:
-            self.expired = True
-            agent.state = Dodge(agent.ball.pos)
-
         # Go for small boost pad on back kickoffs.
         if self.kickoff_pos in (2,3) and distance > 3200:
             target = a3l([0, -2700, 70]) * team_sign(agent.team)
         else:
             target = agent.ball.pos
 
-        agent.ctrl = simple(agent, target)
+        # Dodge if close.
+        if ETA < 0.4: self.dodge = Dodge(agent.ball.pos)
+        if self.dodge is None:
+            agent.ctrl = simple(agent, target)
+        else:
+            self.dodge.execute(agent)
 
         super().execute(agent)
 
@@ -423,8 +425,13 @@ class Dodge(BaseState):
             agent.ctrl.jump = False
             agent.ctrl.pitch = -0.5
         elif self.timer < 0.3:
+            local_target = local(agent.orient_m, agent.player.pos, self.target_pos)
+            direction = normalise(local_target)
+            print(direction)
+
             agent.ctrl.jump = True
-            agent.ctrl.pitch = -1        
+            agent.ctrl.pitch = -direction[0]
+            agent.ctrl.yaw = direction[1]        
         else:
             self.expired = True
 

@@ -16,9 +16,12 @@ class Calculator(BaseAgent):
         self.state = Idle()
 
     def checkState(self):
+        
         # TODO Check if near active pad, take it
-        if not (isinstance(self.state, Kickoff) or isinstance(self.state, Dodge)) and Kickoff.available(self):
-            self.state = Kickoff()
+
+        # Trigger kickoff state whenever available.
+        if not isinstance(self.state, Kickoff) and Kickoff.available(self): self.state = Kickoff()
+
         if self.state.expired:
             if Kickoff.available(self):
                 self.state = Kickoff()

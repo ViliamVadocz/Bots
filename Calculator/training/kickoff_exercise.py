@@ -8,7 +8,7 @@ from rlbot.matchcomms.common_uses.set_attributes_message import make_set_attribu
 from rlbot.matchconfig.match_config import MatchConfig, PlayerConfig, Team
 from rlbot.utils.game_state_util import BallState, CarState, GameState, Physics, Rotator, Vector3
 
-from kickoff_grader import KickoffGrader
+from rlbottraining.common_graders.kickoff_grader import KickoffGrader
 from rlbottraining.grading.grader import Grader
 from rlbottraining.match_configs import make_empty_match_config
 from rlbottraining.paths import BotConfigs
@@ -110,6 +110,11 @@ def make_default_playlist() -> Playlist:
         KickoffExercise('Back Right', blue_spawns=[Spawns.BACK_R], orange_spawns = []),
         KickoffExercise('Back Left', blue_spawns=[Spawns.BACK_L], orange_spawns = []),
         KickoffExercise('Straight', blue_spawns=[Spawns.STRAIGHT], orange_spawns = []),
+        # KickoffExercise('Right Corner', blue_spawns=[Spawns.CORNER_R], orange_spawns = [Spawns.CORNER_R]),
+        # KickoffExercise('Left Corner', blue_spawns=[Spawns.CORNER_L], orange_spawns = [Spawns.CORNER_L]),
+        # KickoffExercise('Back Right', blue_spawns=[Spawns.BACK_R], orange_spawns = [Spawns.BACK_R]),
+        # KickoffExercise('Back Left', blue_spawns=[Spawns.BACK_L], orange_spawns = [Spawns.BACK_L]),
+        # KickoffExercise('Straight', blue_spawns=[Spawns.STRAIGHT], orange_spawns = [Spawns.STRAIGHT]),
     ]
 
     for ex in exercises:
@@ -117,7 +122,10 @@ def make_default_playlist() -> Playlist:
 
         # Replace with path to your bot. 
         ex.match_config.player_configs = \
-        [PlayerConfig.bot_config(Path('E:\Documents\RLBot\ViliamVadocz\Calculator\Calculator.cfg'), Team.BLUE) for _ in ex.blue_spawns] + \
-        [PlayerConfig.bot_config(Path('E:\Documents\RLBot\ViliamVadocz\Calculator\Calculator.cfg'), Team.ORANGE) for _ in ex.orange_spawns]
+        [PlayerConfig.bot_config(Path('E:/Documents/RLBot/ViliamVadocz/Calculator/Calculator.cfg'), Team.BLUE) for _ in ex.blue_spawns] + \
+        [PlayerConfig.bot_config(Path('C:/Users/Viliam/AppData/Local/RLBotGUI/RLBotPackDeletable/RLBotPack-master/RLBotPack/Boolean Algebra Calf/CowBot.cfg'), Team.ORANGE) for _ in ex.orange_spawns]
+        # [PlayerConfig.bot_config(Path('C:/Users/Viliam/AppData/Local/RLBotGUI/RLBotPackDeletable/RLBotPack-master/RLBotPack/BotimusPrime/botimus.cfg'), Team.ORANGE) for _ in ex.orange_spawns]
+        # [PlayerConfig.bot_config(Path('C:/Users/Viliam/AppData/Local/RLBotGUI/RLBotPackDeletable/RLBotPack-master/RLBotPack/Kamael/Kamael.cfg'), Team.ORANGE) for _ in ex.orange_spawns]
+        # [PlayerConfig.bot_config(Path('C:/Users/Viliam/AppData/Local/RLBotGUI/RLBotPackDeletable/RLBotPack-master/RLBotPack/Wildfire_League_S0W5/python/wildfire.cfg'), Team.ORANGE) for _ in ex.orange_spawns]
 
     return exercises

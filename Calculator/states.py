@@ -46,6 +46,7 @@ class Kickoff(BaseState):
     def __init__(self):
         super().__init__()
         self.kickoff_pos = None
+        self.timer = 0.0
         self.dodge = None
 
     @staticmethod
@@ -54,7 +55,7 @@ class Kickoff(BaseState):
 
     def execute(self, agent):
         # If the kickoff pause ended and the ball has been touched recently, expire.
-        if agent.ball.pos[0] != 0 or agent.ball.pos[1] != 0:
+        if agent.ball.pos[0] != 0 or agent.ball.pos[1] != 0 or self.timer > 3.0:
             self.expired = True
 
         if self.kickoff_pos is None:
@@ -62,23 +63,61 @@ class Kickoff(BaseState):
             vectors = kickoff_positions * team_sign(agent.team) - agent.player.pos
             distances = np.sqrt(np.einsum('ij,ij->i', vectors, vectors))
             self.kickoff_pos = np.where(distances == np.amin(distances))[0][0]
+            
+        team = team_sign(agent.team)
+        side = 1 if self.kickoff_pos in (0,2) else -1
+        
+        # Corner
+        if self.kickoff_pos in (0,1):
+            if self.timer < 0.5:
+                target = a3l([-800*side, 0, 0]) * team
+                agent.ctrl = simple(agent, target)
 
-        distance = np.linalg.norm(agent.ball.pos - agent.player.pos)
-        ETA = distance / np.linalg.norm(agent.player.vel)
+            else:
+                if self.dodge is None: 
+                    self.dodge = Dodge(a3l([0, -2500, 0])*team)
+                    agent.ctrl.boost = True
 
-        # Go for small boost pad on back kickoffs.
-        if self.kickoff_pos in (2,3) and distance > 3200:
-            target = a3l([0, -2700, 70]) * team_sign(agent.team)
+                else:
+                    self.dodge.execute(agent)
+                    agent.ctrl.boost = True
+                    #if self.dodge.expired: self.dodge = None
+
+        # Back
+        elif self.kickoff_pos in (2,3):
+            distance = np.linalg.norm(agent.ball.pos - agent.player.pos)
+            ETA = distance / np.linalg.norm(agent.player.vel)
+            if distance > 3200:
+                target = a3l([0, -2700, 70]) * team_sign(agent.team)
+            else:
+                target = agent.ball.pos
+
+            # Dodge if close.
+            if self.dodge is None:
+                if ETA < 0.4: self.dodge = Dodge(agent.ball.pos)
+                agent.ctrl = simple(agent, target)
+            else:
+                self.dodge.execute(agent)
+
+        # Fake Centre
+        elif agent.fake_kickoff_works:
+            agent.went_for_fake_ko = agent.game_time
+            agent.ctrl.throttle = -0.5 if abs(agent.player.pos[1]) < 5000 else 0.0
+
+        # Centre
         else:
-            target = agent.ball.pos
+            distance = np.linalg.norm(agent.ball.pos - agent.player.pos)
+            ETA = distance / np.linalg.norm(agent.player.vel)
 
-        # Dodge if close.
-        if ETA < 0.4: self.dodge = Dodge(agent.ball.pos)
-        if self.dodge is None:
-            agent.ctrl = simple(agent, target)
-        else:
-            self.dodge.execute(agent)
+            # Dodge if close.
+            if self.dodge is None:
+                if ETA < 0.4: self.dodge = Dodge(agent.ball.pos)
+                agent.ctrl = simple(agent, agent.ball.pos)
+            else:
+                self.dodge.execute(agent)
 
+
+        self.timer += agent.dt
         super().execute(agent)
 
         # TODO Do proper kickoff code.
@@ -159,7 +198,7 @@ class Catch(BaseState):
         z_pos = agent.ball.predict.pos[:,2]
         z_vel = agent.ball.predict.vel[:,2]
         # Compares change in z velocity between ticks and whether the ball is on the ground.
-        bounce_bool = (z_vel[:-1] < z_vel[1:] - 500) & (z_pos[:-1] < 100)
+        bounce_bool = (z_vel[:-1] < z_vel[1:] - 700) & (z_pos[:-1] < 100)
         bounces = agent.ball.predict.pos[:-1][bounce_bool]
         times = agent.ball.predict.time[:-1][bounce_bool]
         return bounces, times
@@ -183,7 +222,7 @@ class PickUp(BaseState):
         opponent_goal = orange_inside_goal * team_sign(agent.team)
         distance_to_goal = np.linalg.norm(agent.ball.pos - opponent_goal)
         distance_to_ball = np.linalg.norm(agent.ball.pos - agent.player.pos)
-        good_distance = distance_to_goal > 4000 and distance_to_ball < 500
+        good_distance = distance_to_goal > 2500 and distance_to_ball < 800
 
         return on_ground and good_distance
 
@@ -196,9 +235,10 @@ class PickUp(BaseState):
             self.expired = True
 
         # Goes for the ball instead if conditions are met.
-        close_to_own_goal = np.linalg.norm(agent.ball.pos - blue_inside_goal*team_sign(agent.team)) < 1200
+        close_to_own_goal = np.linalg.norm(agent.ball.pos - blue_inside_goal*team_sign(agent.team)) < 1500
         too_slow = np.dot(agent.ball.vel, normalise(agent.player.vel)) < 700
-        if self.ready_to_cut or too_slow and not close_to_own_goal:
+        wrong_side = abs(agent.player.pos[1]) + 200 < abs(agent.ball.pos[1])
+        if self.ready_to_cut or too_slow and not (close_to_own_goal or wrong_side):
             target = agent.ball.pos
 
         else:
@@ -243,7 +283,7 @@ class Dribble(BaseState):
     def execute(self, agent):
 
         # If ball touching ground, expire.
-        if agent.ball.pos[2] < 100:
+        if agent.ball.pos[2] < 100 or agent.ball.pos[2] > 300:
             self.expired = True
         if np.linalg.norm(agent.ball.pos - agent.player.pos) > 300:
             self.expired = True
@@ -281,7 +321,7 @@ class Dribble(BaseState):
         goal_distance = np.linalg.norm(opponent_goal - agent.player.pos)
 
         # POP
-        if len(agent.opponents) > 0:
+        if len(agent.opponents) > 0 and self.timer > 0.5:
             me = agent.player
             me_prediction = linear_predict(me.pos, me.vel, agent.game_time, 2)
             op = agent.opponents[0]
@@ -425,9 +465,8 @@ class Dodge(BaseState):
             agent.ctrl.jump = False
             agent.ctrl.pitch = -0.5
         elif self.timer < 0.3:
-            local_target = local(agent.orient_m, agent.player.pos, self.target_pos)
+            local_target = local(agent.player.orient_m, agent.player.pos, self.target_pos)
             direction = normalise(local_target)
-            print(direction)
 
             agent.ctrl.jump = True
             agent.ctrl.pitch = -direction[0]
@@ -456,8 +495,8 @@ class SimplePush(BaseState):
         perpendicular_to_hit = np.cross(direction_to_hit, a3l([0,0,1]))
 
         # Calculating component lengths and multiplying with direction.
-        perpendicular_component = perpendicular_to_hit * cap(np.dot(perpendicular_to_hit, agent.ball.pos), -distance/6, distance/6)
-        in_direction_component = -direction_to_hit * distance/2
+        perpendicular_component = perpendicular_to_hit * cap(np.dot(perpendicular_to_hit, agent.ball.pos), -distance/3, distance/3)/2
+        in_direction_component = -direction_to_hit * distance/3
 
         # Combine components to get a drive target.
         target = agent.ball.pos + in_direction_component + perpendicular_component
@@ -477,29 +516,40 @@ class SimplePush(BaseState):
 
 class GetBoost(BaseState):
 
+    def __init__(self):
+        super().__init__()
+        self.target_pad = None
+
     @staticmethod
     def available(agent):
         if agent.player.boost < 30:
             ball_distance = np.linalg.norm(agent.ball.pos - agent.player.pos)
             for pad in agent.l_pads:
-                if pad.active and np.linalg.norm(pad.pos - agent.player.pos) + 700 < ball_distance:
-                    return True
+                if pad.active:
+                    pad_distance = np.linalg.norm(pad.pos - agent.player.pos)
+                    if pad_distance < 300:
+                        return True
+                    elif pad_distance + 700 < ball_distance:
+                        return True
+
         return False
 
     def execute(self, agent):
 
-        if agent.player.boost >= 80 or np.linalg.norm(agent.ball.pos - agent.player.pos) < 500:
+        if self.target_pad is None:
+            ball_distance = np.linalg.norm(agent.ball.pos - agent.player.pos)
+            for pad in agent.l_pads:
+                if pad.active:
+                    pad_distance = np.linalg.norm(pad.pos - agent.player.pos)
+                    if pad_distance < 300:
+                        self.target_pad = pad
+                    elif pad_distance + 700 < ball_distance:
+                        self.target_pad = pad
+
+        if agent.player.boost >= 80 or not self.target_pad.active:
             self.expired = True
 
-        closest = agent.l_pads[0]
-        for pad in agent.l_pads:
-            if np.linalg.norm(pad.pos - agent.player.pos) < np.linalg.norm(closest.pos - agent.player.pos):
-                closest = pad
-
-        if not pad.active:
-            self.expired = True
-
-        agent.ctrl = simple(agent, pad.pos)
+        agent.ctrl = simple(agent, self.target_pad.pos)
         super().execute(agent)
 
 

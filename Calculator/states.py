@@ -347,7 +347,7 @@ class Dribble(BaseState):
             distances = np.sqrt(np.einsum('ij,ij->i', vectors, vectors))
             collision = distances < 150
 
-            going_opposite = True #np.sign(np.dot(me.vel, op.vel)) == -1
+            going_opposite = np.sign(np.dot(me.vel, op.vel)) == -1
             if np.count_nonzero(collision) > 0 and going_opposite and (1000 < goal_distance < 7000) and np.linalg.norm(agent.player.vel) > 1000 and op_prediction.time[collision][0] - agent.game_time < 0.5:
                 self.expired = True
                 agent.state = Flick('POP')    

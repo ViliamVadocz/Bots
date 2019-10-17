@@ -17,7 +17,7 @@ class Calculator(BaseAgent):
         self.state = Idle()
 
         # Fake kickoff related
-        self.fake_kickoff_works = True
+        self.fake_kickoff_works = False
         self.went_for_fake_ko = -1
         self.enemy_goals = 0
         self.restraint = 0

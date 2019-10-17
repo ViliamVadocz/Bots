@@ -64,7 +64,7 @@ class DribbleRoll(TrainingExercise):
 
 
 def make_default_playlist() -> Playlist:
-    exercises = [DribbleRoll('Dribble Roll')]
+    exercises = [DribbleRoll('Dribble Roll'), DribbleDrop('Dribble Drop')]
 
     for ex in exercises:
         ex.match_config.player_configs = [

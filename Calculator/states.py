@@ -86,7 +86,11 @@ class Kickoff(BaseState):
         # Back
         elif self.kickoff_pos in (2,3):
             distance = np.linalg.norm(agent.ball.pos - agent.player.pos)
-            ETA = distance / np.linalg.norm(agent.player.vel)
+            if np.linalg.norm(agent.player.vel) == 0:
+                ETA = 100
+            else:
+                ETA = distance / np.linalg.norm(agent.player.vel)
+
             if distance > 3200:
                 target = a3l([0, -2700, 70]) * team_sign(agent.team)
             else:
@@ -107,7 +111,10 @@ class Kickoff(BaseState):
         # Centre
         else:
             distance = np.linalg.norm(agent.ball.pos - agent.player.pos)
-            ETA = distance / np.linalg.norm(agent.player.vel)
+            if np.linalg.norm(agent.player.vel) == 0:
+                ETA = 100
+            else:
+                ETA = distance / np.linalg.norm(agent.player.vel)
 
             # Dodge if close.
             if self.dodge is None:
@@ -340,15 +347,10 @@ class Dribble(BaseState):
             distances = np.sqrt(np.einsum('ij,ij->i', vectors, vectors))
             collision = distances < 150
 
-            going_opposite = np.sign(np.dot(me.vel, op.vel)) == -1
+            going_opposite = True #np.sign(np.dot(me.vel, op.vel)) == -1
             if np.count_nonzero(collision) > 0 and going_opposite and (1000 < goal_distance < 7000) and np.linalg.norm(agent.player.vel) > 1000 and op_prediction.time[collision][0] - agent.game_time < 0.5:
                 self.expired = True
-                agent.state = Flick('POP')  
-            
-        # TEMP code
-        #elif (2000 < goal_distance < 7000) and np.linalg.norm(agent.player.vel) > 1000 and angle_diff < 0.3 and abs(difference[0]) < 20:
-        #    self.expired = True
-        #    agent.state = AirDribble()    
+                agent.state = Flick('POP')    
 
         target = world(agent.player.orient_m, bounce, local_offset)
 
@@ -419,46 +421,6 @@ class Flick(BaseState):
         super().execute(agent)
 
 
-class AirDribble(BaseState):
-
-    def __init__(self):
-        super().__init__()
-        self.timer = 0.0
-
-    def execute(self, agent):
-        if self.timer < 0.1:
-            agent.ctrl.pitch = 1
-            agent.ctrl.boost = True
-            agent.ctrl.jump = True
-        elif self.timer < 0.2:
-            agent.ctrl.pitch = 1
-            agent.ctrl.boost = True
-            agent.ctrl.jump = False
-        elif self.timer < 0.3:
-            agent.ctrl.pitch = 0
-            agent.ctrl.boost = True
-            agent.ctrl.jump = True
-        elif self.timer < 0.5:
-            agent.ctrl.pitch = 1
-            agent.ctrl.boost = True
-            agent.ctrl.jump = False
-        else:
-            forward = normalise(agent.ball.pos - agent.player.pos)
-            right = np.cross(forward, a3l([0,0,1]))
-            up = np.cross(right, forward)
-
-            desired_orient = np.vstack((forward, right, up)).T
-
-            agent.ctrl.roll, agent.ctrl.pitch, agent.ctrl.yaw = \
-                aerial_input_generate(agent.player.orient_m, desired_orient, agent.player.ang_vel, agent.dt)
-            agent.ctrl.boost = True
-
-            if agent.player.wheel_c:
-                self.expired = True
-
-        self.timer += agent.dt
-        super().execute(agent)
-
 
 class Dodge(BaseState):
 
@@ -514,7 +476,7 @@ class SimplePush(BaseState):
         agent.ctrl.boost = False
 
         # Dodge when far away..
-        if distance > 2000 and (700 < np.dot(normalise(agent.ball.pos-agent.player.pos), agent.player.vel) < 2000):
+        if distance > 1000 and (700 < np.dot(normalise(agent.ball.pos-agent.player.pos), agent.player.vel) < 2000):
             self.expired = True
             agent.state = Dodge(agent.ball.pos)
 
@@ -555,10 +517,16 @@ class GetBoost(BaseState):
             for pad in agent.l_pads:
                 if pad.active:
                     pad_distance = np.linalg.norm(pad.pos - agent.player.pos)
-                    if pad_distance < 300:
+                    if pad_distance < 500:
                         self.target_pad = pad
+                        break
                     elif pad_distance + 700 < ball_distance:
                         self.target_pad = pad
+                        break
+                            
+        # If still nothing, expire.
+        if self.target_pad is None:
+            self.expired = True
 
         if agent.player.boost >= 80 or not self.target_pad.active:
             self.expired = True

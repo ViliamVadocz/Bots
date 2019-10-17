@@ -307,14 +307,23 @@ class Dribble(BaseState):
         # Angle from goal angle to ball vel angle. Counterclockwise is positive.
         angle_diff = goal_angle - ball_vel_angle
         angle_diff *= team_sign(agent.team)
+
+        # Raw angle.
+        raw_angle = angle_between_vectors(ball_to_goal, agent.ball.vel*a3l([1,1,0]))
         
         # Calculates the relative position of the ball.
         relative_ball = local(agent.player.orient_m, agent.player.pos, agent.ball.pos)
+
         # Creates a desired position for the ball based on angle difference.
-        desired_ball = a3l([35, 100 * special_sauce(angle_diff*1.2, -3), 125])
+        if abs(raw_angle) < 0.5:
+            desired_ball = a3l([35, 100 * special_sauce(angle_diff*1.2, -3), 125])
+        else:
+            desired_ball = a3l([35, 100 * np.sign(angle_diff), 125])
+
         # Calculated difference between relative ball position and desired ball position.
         # Used to determine the offset from the predicted ball position to drive towards.
         difference = relative_ball - desired_ball
+
         local_offset = a3l([difference[0], difference[1]*2, 0]) * special_sauce(self.timer, -1)
 
         # Calculate goal distance for flicks.
@@ -504,6 +513,11 @@ class SimplePush(BaseState):
         agent.ctrl = simple(agent, target)
         agent.ctrl.boost = False
 
+        # Dodge when far away..
+        if distance > 2000 and (700 < np.dot(normalise(agent.ball.pos-agent.player.pos), agent.player.vel) < 2000):
+            self.expired = True
+            agent.state = Dodge(agent.ball.pos)
+
         # Rendering.
         agent.renderer.begin_rendering('State')
         agent.renderer.draw_rect_3d(target, 10, 10, True, agent.renderer.cyan())
@@ -527,7 +541,7 @@ class GetBoost(BaseState):
             for pad in agent.l_pads:
                 if pad.active:
                     pad_distance = np.linalg.norm(pad.pos - agent.player.pos)
-                    if pad_distance < 300:
+                    if pad_distance < 500:
                         return True
                     elif pad_distance + 700 < ball_distance:
                         return True
@@ -548,6 +562,11 @@ class GetBoost(BaseState):
 
         if agent.player.boost >= 80 or not self.target_pad.active:
             self.expired = True
+            
+        # Dodge when far away.
+        if np.linalg.norm(self.target_pad.pos-agent.player.pos) > 1000 and (700 < np.dot(normalise(self.target_pad.pos-agent.player.pos), agent.player.vel) < 2000):
+            self.expired = True
+            agent.state = Dodge(agent.ball.pos)
 
         agent.ctrl = simple(agent, self.target_pad.pos)
         super().execute(agent)

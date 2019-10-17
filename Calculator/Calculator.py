@@ -3,6 +3,7 @@
 # RLBot imports.
 from rlbot.agents.base_agent import BaseAgent, SimpleControllerState
 from rlbot.utils.structures.game_data_struct import GameTickPacket
+from rlbot.utils.structures.quick_chats import QuickChats
 
 # Local file imports.
 import data
@@ -19,6 +20,7 @@ class Calculator(BaseAgent):
         self.fake_kickoff_works = True
         self.went_for_fake_ko = -1
         self.enemy_goals = 0
+        self.restraint = 0
 
 
     def checkState(self):
@@ -70,13 +72,18 @@ class Calculator(BaseAgent):
 
                 about_to_score = np.count_nonzero(in_goal_predictions) > 40 and not opponent_behind
 
-                print('opp beh', opponent_behind, 'in g pred', np.count_nonzero(in_goal_predictions))
-
                 if not about_to_score:
                     self.state.execute(self)
                     # TODO self.state.render(self)
                 else:
-                    print("GOOOOOOOOOOOOOOOOOOOOAAAAAAAAAAL!!!!!")
+                    if self.restraint == 0:
+                        self.send_quick_chat(QuickChats.CHAT_EVERYONE, QuickChats.Reactions_Calculated)
+                        self.restraint = 360
+                    else:
+                        self.restraint -= 1
+
+            else:
+                self.state.execute(self)
             
         # If got scored on less than 20 seconds after a fake kickoff, don't do it again.
         if packet.teams[abs(self.team - 1)].score > self.enemy_goals:

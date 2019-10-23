@@ -229,7 +229,7 @@ class PickUp(BaseState):
         opponent_goal = orange_inside_goal * team_sign(agent.team)
         distance_to_goal = np.linalg.norm(agent.ball.pos - opponent_goal)
         distance_to_ball = np.linalg.norm(agent.ball.pos - agent.player.pos)
-        good_distance = distance_to_goal > 2500 and distance_to_ball < 800
+        good_distance = distance_to_goal > 3000 and distance_to_ball < 800
 
         return on_ground and good_distance
 
@@ -476,7 +476,7 @@ class SimplePush(BaseState):
         agent.ctrl.boost = False
 
         # Dodge when far away..
-        if distance > 1000 and (700 < np.dot(normalise(agent.ball.pos-agent.player.pos), agent.player.vel) < 2000):
+        if agent.player.pos[2] < 20 and distance > 1500 and (1000 < np.dot(normalise(agent.ball.pos-agent.player.pos), agent.player.vel) < 2000):
             self.expired = True
             agent.state = Dodge(agent.ball.pos)
 
@@ -532,7 +532,8 @@ class GetBoost(BaseState):
             self.expired = True
             
         # Dodge when far away.
-        if np.linalg.norm(self.target_pad.pos-agent.player.pos) > 1000 and (700 < np.dot(normalise(self.target_pad.pos-agent.player.pos), agent.player.vel) < 2000):
+        if agent.player.pos[2] < 20 and np.linalg.norm(self.target_pad.pos-agent.player.pos) > 1500 \
+            and (1000 < np.dot(normalise(agent.ball.pos-agent.player.pos), agent.player.vel) < 2000):
             self.expired = True
             agent.state = Dodge(agent.ball.pos)
 

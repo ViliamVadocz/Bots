@@ -8,7 +8,7 @@ from rlbot.utils.structures.quick_chats import QuickChats
 # Local file imports.
 import data
 from utils import np, a3l, normalise, local, cap, team_sign, special_sauce
-from states import Idle, Kickoff, Catch, PickUp, Dribble, SimplePush, GetBoost, Dodge
+from states import Idle, Kickoff, Catch, PickUp, Dribble, SimplePush, GetBoost, Dodge, orange_inside_goal
 
 class Calculator(BaseAgent):
 
@@ -16,10 +16,12 @@ class Calculator(BaseAgent):
         self.need_setup = True
         self.state = Idle()
 
-        # Fake kickoff related
+        # Fake kickoff related.
         self.fake_kickoff_works = False
         self.went_for_fake_ko = -1
         self.enemy_goals = 0
+
+        # Restraint to prevent Calculated spam.
         self.restraint = 0
 
 
@@ -63,14 +65,20 @@ class Calculator(BaseAgent):
         if not self.state.expired:
             # Don't do anything if about to score.
             if len(self.opponents) == 1:
-                if self.team == 0:
-                    in_goal_predictions = self.ball.predict.pos[:,1][:60] > 5200
-                    opponent_behind = self.opponents[0].pos[1] > self.ball.pos[1]
-                else:
-                    in_goal_predictions = self.ball.predict.pos[:,1][:60] < -5200
-                    opponent_behind = self.opponents[0].pos[1] < self.ball.pos[1]
+                opponent_goal = orange_inside_goal * team_sign(self.team)
 
-                about_to_score = np.count_nonzero(in_goal_predictions) > 40 and not opponent_behind
+                my_dist_to_goal = np.linalg.norm(self.player.pos - opponent_goal)
+                opp_dist_to_goal = np.linalg.norm(self.opponents[0].pos - opponent_goal)
+                opp_closer_to_goal = my_dist_to_goal > opp_dist_to_goal
+
+                if self.team == 0:
+                    in_goal_predictions = self.ball.predict.pos[:,1][:120] > 5150
+                    # opponent_behind = self.opponents[0].pos[1] > self.ball.pos[1]
+                else:
+                    in_goal_predictions = self.ball.predict.pos[:,1][:120] < -5150
+                    # opponent_behind = self.opponents[0].pos[1] < self.ball.pos[1]
+
+                about_to_score = np.count_nonzero(in_goal_predictions) > 60 and not opp_closer_to_goal
 
                 if not about_to_score:
                     self.state.execute(self)

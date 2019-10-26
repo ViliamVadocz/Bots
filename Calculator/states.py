@@ -229,7 +229,14 @@ class PickUp(BaseState):
         opponent_goal = orange_inside_goal * team_sign(agent.team)
         distance_to_goal = np.linalg.norm(agent.ball.pos - opponent_goal)
         distance_to_ball = np.linalg.norm(agent.ball.pos - agent.player.pos)
-        good_distance = distance_to_goal > 3000 and distance_to_ball < 800
+        good_distance = distance_to_goal > 2800 and distance_to_ball < 600
+
+        if len(agent.opponents) == 1:
+            my_dist_to_goal = np.linalg.norm(agent.player.pos - opponent_goal)
+            opp_dist_to_goal = np.linalg.norm(agent.opponents[0].pos - opponent_goal)
+            opp_closer_to_goal = my_dist_to_goal > opp_dist_to_goal
+
+            return on_ground and good_distance and opp_closer_to_goal
 
         return on_ground and good_distance
 
@@ -242,9 +249,10 @@ class PickUp(BaseState):
             self.expired = True
 
         # Goes for the ball instead if conditions are met.
-        close_to_own_goal = np.linalg.norm(agent.ball.pos - blue_inside_goal*team_sign(agent.team)) < 1500
+        close_to_own_goal = np.linalg.norm(agent.ball.pos - blue_inside_goal*team_sign(agent.team)) < 1800
         too_slow = np.dot(agent.ball.vel, normalise(agent.player.vel)) < 700
         wrong_side = abs(agent.player.pos[1]) + 200 < abs(agent.ball.pos[1])
+
         if self.ready_to_cut or too_slow and not (close_to_own_goal or wrong_side):
             target = agent.ball.pos
 
@@ -337,7 +345,7 @@ class Dribble(BaseState):
         goal_distance = np.linalg.norm(opponent_goal - agent.player.pos)
 
         # POP
-        if len(agent.opponents) > 0 and self.timer > 0.5:
+        if len(agent.opponents) == 1 and self.timer > 0.5:
             me = agent.player
             me_prediction = linear_predict(me.pos, me.vel, agent.game_time, 2)
             op = agent.opponents[0]

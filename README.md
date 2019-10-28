@@ -4,16 +4,7 @@ Custom Bots for Rocket League.
 
 ## Calculator
 
-<!-- ![Calculator scoring against Botimus Prime](gifs/Calculated1.gif)
-![Calculator scoring against Botimus Prime](gifs/Calculated2.gif)
-![Calculator scoring against Botimus Prime](gifs/Calculated3.gif) -->
 ![Calculator scoring against Botimus Prime](gifs/Calculated4.gif)
-
-Additional gifs:
-[1](https://gfycat.com/weightyfewcopperhead-rocketleague "Super cool gif")
-[2](https://gfycat.com/sharpimaginativecaiman-rocketleague "Super cool gif")
-[3](https://gfycat.com/unfortunatespiffyasianconstablebutterfly-race-track "Super cool gif")
-<!-- [4](https://gfycat.com/veneratedgiftedgeese-rocketleague "Super cool gif") -->
 
 Calculator is a 1v1 bot that focused on ball-control. It is a *finite state machine*, which means it has various states and transitions between them based on the situation. It attempts to catch the ball if it's falling, pick it up if it's rolling, and tries to dribble it into the opponent's goal. It even has a signature move: when dribbling, it can [pop the ball up and over charging defenders.](https://clips.twitch.tv/LitigiousTacitBearPeanutButterJellyTime "Twitch clip")
 

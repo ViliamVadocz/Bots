@@ -229,7 +229,7 @@ class PickUp(BaseState):
         opponent_goal = orange_inside_goal * team_sign(agent.team)
         distance_to_goal = np.linalg.norm(agent.ball.pos - opponent_goal)
         distance_to_ball = np.linalg.norm(agent.ball.pos - agent.player.pos)
-        good_distance = distance_to_goal > 2800 and distance_to_ball < 600
+        good_distance = distance_to_goal > 3000 and distance_to_ball < 600
 
         if len(agent.opponents) == 1:
             my_dist_to_goal = np.linalg.norm(agent.player.pos - opponent_goal)
@@ -245,7 +245,17 @@ class PickUp(BaseState):
         # Checks if the ball has been hit recently.
         if agent.ball.last_touch.time_seconds + 0.1 > agent.game_time:
             self.expired = True
+
+        # Checks if ball is not rolling.
         if agent.ball.pos[2] > 100:
+            self.expired = True
+
+        opponent_goal = orange_inside_goal * team_sign(agent.team)
+        
+        # Checks if not close to goal.
+        distance_to_goal = np.linalg.norm(agent.ball.pos - opponent_goal)
+        distance_to_ball = np.linalg.norm(agent.ball.pos - agent.player.pos)
+        if distance_to_ball > 700 or distance_to_goal < 3000:
             self.expired = True
 
         # Goes for the ball instead if conditions are met.
@@ -257,8 +267,6 @@ class PickUp(BaseState):
             target = agent.ball.pos
 
         else:
-            opponent_goal = orange_inside_goal * team_sign(agent.team)
-
             # Find components in direction and perpendicular to the ball velocity.
             ball_vel_direction = normalise(agent.ball.vel)
             perpendicular_to_vel = np.cross(ball_vel_direction, a3l([0,0,1]))
@@ -474,7 +482,7 @@ class SimplePush(BaseState):
         perpendicular_to_hit = np.cross(direction_to_hit, a3l([0,0,1]))
 
         # Calculating component lengths and multiplying with direction.
-        perpendicular_component = perpendicular_to_hit * cap(np.dot(perpendicular_to_hit, agent.ball.pos), -distance/3, distance/3)/2
+        perpendicular_component = 2*perpendicular_to_hit * cap(np.dot(perpendicular_to_hit, agent.ball.pos), -distance/3, distance/3)/3
         in_direction_component = -direction_to_hit * distance/3
 
         # Combine components to get a drive target.

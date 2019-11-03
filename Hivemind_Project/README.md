@@ -1,5 +1,5 @@
 # HiveBot
 
-My current focus.
+Check out HiveExampleBot for an explanation of how it works.
 
-This bot is very experimental. It uses a BotHelperProcess to control multiple copies of itself.
+Check back later!

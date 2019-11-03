@@ -3,7 +3,7 @@
 This is a custom Rocket League bot which uses one process to control multiple bots.
 The example code provided showcases how hiveminds can be used for coordinated manoeuvres, such as team pinches (A special move where the ball is squeezed between two cars to launch it at high speeds.)
 
-[A GIF of this example bot in action](https://gfycat.com/exemplaryeminentflyingfish-rocketleague)
+![A GIF of this example bot in action](team-pinch.gif)
 
 ## Overview of the Structure
 
@@ -316,4 +316,10 @@ But don't worry! That's just because I didn't want to clutter this document. If 
 
 It is still very simple, so maybe take it as a challenge to improve it! There are plenty of comments to help guide you, and if you don't want to read through the code, you can just play around with the parameters at the top of the main file and see what happens.
 
-If you have any unanswered questions, direct them at me either through [mail](viliam.vadocz@gmail.com) or on [discord](@Calculated_Will#4544)
+Some suggestions for what to try:
+
+- Using a speed controller to coordinate arrival time.
+- Aiming team pinches.
+- Team pinches from other locations.
+
+If you have any unanswered questions, contact me through [mail](viliam.vadocz@gmail.com) or on [discord](@Calculated_Will#4544).

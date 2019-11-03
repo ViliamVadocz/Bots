@@ -1,3 +1,5 @@
 # BoostHog
-A bot for Rocket League which strives to be the very best at taking all the boost.
-No longer under development.
+
+My foray into RLBot. Tries to collect boost, tries to use paths but doesn't really.
+
+Retired.

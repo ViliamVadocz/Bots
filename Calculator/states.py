@@ -353,10 +353,18 @@ class Dribble(BaseState):
         goal_distance = np.linalg.norm(opponent_goal - agent.player.pos)
 
         # POP
-        if len(agent.opponents) == 1 and self.timer > 0.5:
+        if self.timer > 0.5 and len(agent.opponents) > 0:
+
             me = agent.player
             me_prediction = linear_predict(me.pos, me.vel, agent.game_time, 2)
             op = agent.opponents[0]
+                
+            # Find closest opponent if more than one.
+            if len(agent.opponents) > 1:
+                for opponent in agent.opponents:
+                    if np.linalg.norm(op.pos - me.pos) > np.linalg.norm(opponent.pos - me.pos):
+                        op = opponent
+            
             op_prediction = linear_predict(op.pos, op.vel, agent.game_time, 2)
 
             vectors = me_prediction.pos - op_prediction.pos

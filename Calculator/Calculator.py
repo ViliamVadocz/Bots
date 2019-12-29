@@ -64,13 +64,24 @@ class Calculator(BaseAgent):
         # Execute state.
         if not self.state.expired:
             # Don't do anything if about to score.
-            if len(self.opponents) == 1:
+            if len(self.opponents) > 0:
+
+                # Compare who is closer to enemy goal.
                 opponent_goal = orange_inside_goal * team_sign(self.team)
 
                 my_dist_to_goal = np.linalg.norm(self.player.pos - opponent_goal)
                 opp_dist_to_goal = np.linalg.norm(self.opponents[0].pos - opponent_goal)
+
+                # Finds closest opponent to enemy goal.
+                if len(self.opponents) > 1:
+                    for opponent in self.opponents:
+                        test_dist = np.linalg.norm(opponent.pos - opponent_goal)
+                        if opp_dist_to_goal > test_dist:
+                            opp_dist_to_goal = test_dist
+
                 opp_closer_to_goal = my_dist_to_goal > opp_dist_to_goal
 
+                # Check if ball is going in.
                 if self.team == 0:
                     in_goal_predictions = self.ball.predict.pos[:,1][:120] > 5150
                     # opponent_behind = self.opponents[0].pos[1] > self.ball.pos[1]
@@ -84,6 +95,7 @@ class Calculator(BaseAgent):
                     self.state.execute(self)
                     # TODO self.state.render(self)
                 else:
+                    # Calculated chat spam.
                     if self.restraint == 0:
                         self.send_quick_chat(QuickChats.CHAT_EVERYONE, QuickChats.Reactions_Calculated)
                         self.restraint = 360

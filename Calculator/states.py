@@ -231,9 +231,16 @@ class PickUp(BaseState):
         distance_to_ball = np.linalg.norm(agent.ball.pos - agent.player.pos)
         good_distance = distance_to_goal > 3000 and distance_to_ball < 600
 
-        if len(agent.opponents) == 1:
+        if len(agent.opponents) > 0:
             my_dist_to_goal = np.linalg.norm(agent.player.pos - opponent_goal)
             opp_dist_to_goal = np.linalg.norm(agent.opponents[0].pos - opponent_goal)
+
+            if len(self.opponents) > 1:
+                for opponent in self.opponents:
+                    test_dist = np.linalg.norm(opponent.pos - opponent_goal)
+                    if opp_dist_to_goal > test_dist:
+                        opp_dist_to_goal = test_dist
+
             opp_closer_to_goal = my_dist_to_goal > opp_dist_to_goal
 
             return on_ground and good_distance and opp_closer_to_goal

@@ -1,12 +1,20 @@
 import numpy as np
 from scipy.interpolate import interp1d
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
-from utils import a3l, normalise
+def a3l(L):
+    return np.array(L)
+
+def normalise(v):
+    mag = np.linalg.norm(v)
+    if mag != 0:
+        return v / mag
+    else:
+        return 0
 
 def straight(start, end, n):
     t = np.linspace(0,1,n)[:,np.newaxis]
-    return t*start + (1-t)*end
+    return (1-t)*start + t*end
 
 def arc(centre, radius, start, end, n):
     theta = np.linspace(start, end, n)[:,np.newaxis]
@@ -64,7 +72,7 @@ def test_path(detail):
     path = np.concatenate((part1, part2, part3, part4, part5, part6, part7))
 
     return path
-'''
+
 def display_path(path):
     fig, ax = plt.subplots()
     img = plt.imread("field.png")
@@ -74,7 +82,7 @@ def display_path(path):
     ax.plot(path[:,0], path[:,1], '-w')
 
     plt.show()
-'''
+
 def get_path_length(path):
     a = path[:-1]
     b = path[1:]
@@ -182,6 +190,7 @@ def path_analysis(path, start_vel = 0):
 
     return time_estimate, b_path_velocities
 
+display_path(test_path(10))
 
 '''
 # Pathing test.

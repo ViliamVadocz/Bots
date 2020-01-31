@@ -32,7 +32,6 @@ class TestBot(BaseAgent):
 
         return orient_towards_ball(self)
 
-
     def process(self, packet: GameTickPacket):
         """Simplified preprocessing which just takes care of the car info that I need.
         

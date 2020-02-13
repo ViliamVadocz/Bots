@@ -62,7 +62,7 @@ def process(self, packet):
     self.m_ended    = packet.game_info.is_match_ended
     self.gravity    = packet.game_info.world_gravity_z
 
-    # Processing drone data.
+    # Processing player data.
         # From packet:
     self.player.pos      = a3v(packet.game_cars[self.player.index].physics.location)
     self.player.rot      = a3r(packet.game_cars[self.player.index].physics.rotation)

@@ -61,7 +61,7 @@ def aerial_input_generate(omega_start : np.ndarray, omega_end : np.ndarray, thet
     # Ner torque in local coordinates.
     tau = np.dot(theta_start.T, tau)
 
-    # Beggining-step angular velocity, in local coordinates.
+    # Beginning-step angular velocity, in local coordinates.
     omega_local = np.dot(theta_start.T, omega_start)
 
     rhs = np.zeros(3)
@@ -93,7 +93,7 @@ class AerialTurn_Control:
         pass
 
     def render(self, s):
-        s.renderer.begin_rendering('AieralTurn')
+        s.renderer.begin_rendering('AerialTurn')
         s.renderer.draw_string_2d(10, 70, 1, 1, ('pitch: '+str(self.agent.ctrl.pitch)), s.renderer.white())
         s.renderer.draw_string_2d(10, 90, 1, 1, ('yaw: '+str(self.agent.ctrl.yaw)), s.renderer.white())
         s.renderer.draw_string_2d(10, 110, 1, 1, ('roll: '+str(self.agent.ctrl.roll)), s.renderer.white())

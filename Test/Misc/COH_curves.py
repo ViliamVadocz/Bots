@@ -195,7 +195,7 @@ def COH(p0, p1, v0, v1, t0, t1, t):
     else:
         print("WIP")
         # TODO Do the other methods.
-        # TODO figure out the reflecion stuff and other transformations.
+        # TODO figure out the reflection stuff and other transformations.
 
 
 def test(theta_min, theta_max, phi_min, phi_max):

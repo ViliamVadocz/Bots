@@ -1,4 +1,4 @@
-'''Utilities (fuctions and classes) for Rocket League.'''
+'''Utilities (functions and classes) for Rocket League.'''
 
 from rlbot.utils.game_state_util import Vector3, Rotator
 
@@ -140,7 +140,7 @@ def a3l(L : list) -> np.ndarray:
     """Converts list to numpy array.
 
     Arguments:
-        L {list} -- The list to convert containing 3 elemets.
+        L {list} -- The list to convert containing 3 elements.
 
     Returns:
         np.array -- Numpy array with the same contents as the list.
@@ -208,7 +208,7 @@ def angle_between_vectors(v1 : np.ndarray, v2 : np.ndarray) -> float:
 
 
 def cap(value : float, minimum : float, maximum : float) -> float:
-    """Caps the value at given minumum and maximum.
+    """Caps the value at given minimum and maximum.
     
     Arguments:
         value {float} -- The value being capped.

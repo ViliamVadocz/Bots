@@ -1,9 +1,10 @@
-'''Utilities (fuctions and classes) for Rocket League.'''
+'''Utilities (functions and classes) for Rocket League.'''
 
 from rlbot.utils.game_state_util import Vector3, Rotator
 
 import numpy as np
-from scipy.interpolate import interp1d
+
+from dataclasses import dataclass
 
 # -----------------------------------------------------------
 
@@ -31,6 +32,25 @@ class Car:
         turn_r {float} -- Turn radius.
         predict {dict} -- Predicted movement.
     """
+    __slots__ = [
+        'index',
+        'pos',
+        'rot',
+        'vel',
+        'ang_vel',
+        'dead',
+        'wheel_c',
+        'sonic',
+        'jumped',
+        'd_jumped',
+        'name',
+        'team',
+        'boost',
+        'orient_m',
+        'turn_r',
+        'predict'   
+    ]
+
     def __init__(self, index : int, team : int, name : str):
         self.index      : int           = index
         self.pos        : np.ndarray    = np.zeros(3)
@@ -48,7 +68,7 @@ class Car:
         
         self.orient_m   : np.ndarray    = np.identity(3)
         self.turn_r     : float         = 0.0
-        self.predict    : dict          = {}
+        self.predict    : Prediction    = None
 
 class Ball:
     """Houses the processed data from the packet for the ball.
@@ -58,14 +78,25 @@ class Ball:
         rot {np.ndarray} -- Rotation (pitch, yaw, roll). 
         vel {np.ndarray} -- Velocity vector.
         ang_vel {np.ndarray} -- Angular velocity (x, y, z). Chip's omega.
-        predict {dict} -- Ball prediction.
+        predict {Prediction} -- Ball prediction.
+        last_touch {dict} -- Last touch information.
     """
+    __slots__ = [
+        'pos',
+        'rot',
+        'vel',
+        'ang_vel',
+        'predict',
+        'last_touch'
+    ]
+
     def __init__(self):
         self.pos        : np.ndarray    = np.zeros(3)
         self.rot        : np.ndarray    = np.zeros(3)
         self.vel        : np.ndarray    = np.zeros(3)
         self.ang_vel    : np.ndarray    = np.zeros(3)
-        self.predict    : dict          = {}
+        self.predict    : Prediction    = Prediction(np.zeros((360,3)),np.zeros((360,3)),np.zeros((360,1)))
+        self.last_touch                 = None
 
 class BoostPad:
     """Houses the processed data from the packet fot the boost pads.
@@ -76,27 +107,30 @@ class BoostPad:
         active {bool} -- Whether the boost pad is active and can be collected.
         timer {float} -- How long until the boost pad is active again.
     """
+    __slots__ = [
+        'index',
+        'pos',
+        'active',
+        'timer'
+    ]
+
     def __init__(self, index : int, pos : np.ndarray):
         self.index      : int           = index
         self.pos        : np.ndarray    = pos
         self.active     : bool          = True
         self.timer      : float         = 0.0
 
-class Drone(Car):
-    """A Drone is a Car under the hivemind's control.
-    It has some additional attributes that Car does not have.
-    
-    Inheritance:
-        Car -- Houses the processed data from the packet.
+@dataclass
+class Prediction:
+    __slots__ = [
+        'pos',
+        'vel',
+        'time'
+    ]
 
-    Attributes:
-        role {Role} -- The drone's role in a strategy.
-        controller {Controller} -- The drone's controller generating inputs. 
-    """
-    def __init__(self, index : int, team : int, name : str):
-        super().__init__(index, team, name)
-        self.role       = None
-        self.controller = None
+    pos : np.ndarray
+    vel : np.ndarray
+    time : np.ndarray
 
 # -----------------------------------------------------------
 
@@ -106,12 +140,12 @@ def a3l(L : list) -> np.ndarray:
     """Converts list to numpy array.
 
     Arguments:
-        L {list} -- The list to convert containing 3 elemets.
+        L {list} -- The list to convert containing 3 elements.
 
     Returns:
         np.array -- Numpy array with the same contents as the list.
     """
-    return np.array([L[0], L[1], L[2]])
+    return np.array(L)
 
 
 def a3r(R : Rotator) -> np.ndarray:
@@ -174,7 +208,7 @@ def angle_between_vectors(v1 : np.ndarray, v2 : np.ndarray) -> float:
 
 
 def cap(value : float, minimum : float, maximum : float) -> float:
-    """Caps the value at given minumum and maximum.
+    """Caps the value at given minimum and maximum.
     
     Arguments:
         value {float} -- The value being capped.
@@ -276,8 +310,8 @@ def team_sign(team : int) -> int:
     Returns:
         int -- 1 if Blue, -1 if Orange
     """
-    return 1 if team == 0 else -1
-    
+    return -2 * team + 1
+
 
 def turn_r(v : np.ndarray) -> float:
     """Calculates the minimum turning radius for given velocity.
@@ -292,23 +326,30 @@ def turn_r(v : np.ndarray) -> float:
     return -6.901E-11 * s**4 + 2.1815E-07 * s**3 - 5.4437E-06 * s**2 + 0.12496671 * s + 157
 
 
-def naive_predict(pos : np.ndarray, vel : np.ndarray, seconds : float, n : int) -> list:
-    """Returns a list of tuples of time and position using a naive prediction method, i.e. continues moving at current velocity.
+def linear_predict(start_pos, start_vel, start_time, seconds) -> Prediction:
+    """Predicts motion of object in a straight line.
     
     Arguments:
-        pos {np.ndarray} -- Starting position.
-        vel {np.ndarray} -- Current velocity.
-        seconds {float} -- Number of seconds to predict for.
-        n {int} -- How many predictions to make.
+        start_pos {np.ndarray} -- Current position.
+        start_vel {np.ndarray} -- Current velocity.
+        start_time {float} -- Current time.
+        seconds {float} -- Time for which to predict.
     
     Returns:
-        list -- List of tuples of time and predicted position at that time.
+        Prediction -- linear prediction, 60 tps.
     """
-    prediction = []
-    step = seconds / n
+    time = np.linspace(0, seconds, 60*seconds)[:,np.newaxis]
+    pos = start_pos + time * start_vel
+    vel = np.ones_like(time) * start_vel
+    time += start_time
+    return Prediction(pos, vel, time)
 
-    for i in range(n+1):
-        t = step*i
-        prediction.append((t, pos+t*vel))
+# -----------------------------------------------------------
 
-    return prediction
+# OTHER:
+
+def special_sauce(x, a):
+    """Modified sigmoid."""
+    # Graph showing how it can be used for steering: 
+    # https://www.geogebra.org/m/udfp2zcy
+    return 2 / (1 + np.exp(a*x)) - 1

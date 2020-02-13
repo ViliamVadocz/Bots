@@ -26,7 +26,7 @@ def map_square_to_circle (x, y):
     def rep_of_max (angle : float) -> float:
         """Uses the appropriate function based on angle.
         Functions will be the reciprocal of the of length 
-        from the origin to the sides of a square centered 
+        from the origin to the sides of a square centred 
         on the origin with side length two.
         
         Arguments:

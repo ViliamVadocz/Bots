@@ -1,8 +1,8 @@
 """Rocket League Functions"""
 
 import numpy as np
-from math               import sin, cos
-from scipy.interpolate  import interp1d
+from math import sin, cos
+from scipy.interpolate import interp1d
 
 def a3l(L):
     """converts list to numpy array"""

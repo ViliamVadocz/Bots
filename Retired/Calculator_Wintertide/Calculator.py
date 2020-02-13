@@ -18,129 +18,131 @@ try:
 except ImportError:
     pass
 
-#Huge thanks to Lie Algebra Cow for fixing some last-minute bugs in time for the tournament.
+# Huge thanks to Lie Algebra Cow for fixing some last-minute bugs in time for the tournament.
+
+
 class Calculator(BaseAgent):
     def __init__(self, name, team, index):
-        self.index          = index
-        self.info           = GameInfo(index, team)
-        self.team           = team
-        self.controls       = SimpleControllerState()
-        self.action         = None
+        self.index = index
+        self.info = GameInfo(index, team)
+        self.team = team
+        self.controls = SimpleControllerState()
+        self.action = None
 
-        self.last_time      = 0.0
-        self.dt             = 1.0 / 120.0
+        self.last_time = 0.0
+        self.dt = 1.0 / 120.0
 
-        self.goals          = 0
+        self.goals = 0
 
-        self.timer          = 0.0
-        self.kickoff_pos    = None
-        self.state          = None
-        self.target         = None
-        self.target_speed   = 1800
-        self.drift          = False
+        self.timer = 0.0
+        self.kickoff_pos = None
+        self.state = None
+        self.target = None
+        self.target_speed = 1800
+        self.drift = False
 
-        #bot parameters
-        self.target_range   = 200
-        self.low_boost      = 25
-        self.max_ball_dist  = 4000
+        # bot parameters
+        self.target_range = 200
+        self.low_boost = 25
+        self.max_ball_dist = 4000
         self.def_extra_dist = 800
         self.turn_c_quality = 20
-        self.min_target_s   = 1000
-        self.dodge_dist     = 400
+        self.min_target_s = 1000
+        self.dodge_dist = 400
 
         self.RLwindow = [0]*4
-
 
     def get_output(self, packet):
         self.info.read_packet(packet)
 
-        #additional processing not done by RLU
-        self.kickoff_pause  = packet.game_info.is_kickoff_pause
-        self.round_active   = packet.game_info.is_round_active
-        self.dt             = self.info.time - self.last_time
-        self.last_time      = self.info.time
-        self.last_touch     = packet.game_ball.latest_touch.player_name
-        
-        #trashtalk
-        if packet.game_cars[self.index].score_info.goals == self.goals + 1:
-            self.send_quick_chat(QuickChats.CHAT_EVERYONE, QuickChats.Reactions_Calculated)
-            
-        self.goals          = packet.game_cars[self.index].score_info.goals
+        # additional processing not done by RLU
+        self.kickoff_pause = packet.game_info.is_kickoff_pause
+        self.round_active = packet.game_info.is_round_active
+        self.dt = self.info.time - self.last_time
+        self.last_time = self.info.time
+        self.last_touch = packet.game_ball.latest_touch.player_name
 
-        #resets controls each tick
+        # trashtalk
+        if packet.game_cars[self.index].score_info.goals == self.goals + 1:
+            self.send_quick_chat(QuickChats.CHAT_EVERYONE,
+                                 QuickChats.Reactions_Calculated)
+
+        self.goals = packet.game_cars[self.index].score_info.goals
+
+        # resets controls each tick
         self.controls = SimpleControllerState()
 
-        #choose state
+        # choose state
         if not self.round_active:
             self.state = None
         elif not self.state == "kickoff":
             if self.kickoff_pause:
-                self.kickoff_pos    = None
-                self.action         = None
-                self.timer          = 0.0
-                self.state          = "kickoff"
-        
+                self.kickoff_pos = None
+                self.action = None
+                self.timer = 0.0
+                self.state = "kickoff"
+
             elif not self.info.my_car.on_ground and not isinstance(self.action, AirDodge):
-                self.state          = "recovery"
-                self.action         = self.action = AerialTurn(self.info.my_car)
+                self.state = "recovery"
+                self.action = self.action = AerialTurn(self.info.my_car)
 
             elif norm(self.info.my_goal.center - self.info.my_car.pos) > norm(self.info.my_goal.center - self.info.ball.pos) + self.def_extra_dist:
-                self.action         = None
-                self.target_speed   = 2300
-                self.state          = "defence"
-		
+                self.action = None
+                self.target_speed = 2300
+                self.state = "defence"
+
                 if self.team == 0:
                     sign = -1
                 else:
                     sign = 1
-                
-                #temporary 2v2 for Cow
+
+                # temporary 2v2 for Cow
                 if len(self.info.teammates) > 0:
                     if self.info.ball.pos[1] > 0:
-                        self.target = vec3(3000,sign*4000,0)
+                        self.target = vec3(3000, sign*4000, 0)
                     else:
-                        self.target = vec3(-3000,sign*4000,0)
+                        self.target = vec3(-3000, sign*4000, 0)
                 else:
-                    self.target = vec3(0,sign*4000,0)
+                    self.target = vec3(0, sign*4000, 0)
 
             elif self.info.my_car.pos[1] > 5120 or self.info.my_car.pos[1] < -5120:
-                self.target         = vec3(0,5000,0) if self.info.my_car.pos[1] > 5120 else vec3(0,-5000,0)
-                self.action         = self.action = Drive(self.info.my_car,self.target,1000)
-                self.state          = "goal escape"
+                self.target = vec3(
+                    0, 5000, 0) if self.info.my_car.pos[1] > 5120 else vec3(0, -5000, 0)
+                self.action = self.action = Drive(
+                    self.info.my_car, self.target, 1000)
+                self.state = "goal escape"
 
             elif self.state == None:
-                self.action         = None
-                self.target         = None
-                self.target_speed   = 2300
-                self.state          = "offence"
+                self.action = None
+                self.target = None
+                self.target_speed = 2300
+                self.state = "offence"
 
-
-        #kickoff state
+        # kickoff state
         if self.state == "kickoff":
             Kickoff.kickoff(self)
 
-            #exit kickoff state
+            # exit kickoff state
             if self.timer >= 2.6 or self.last_touch != '':
-                self.state  = None
+                self.state = None
                 self.action = None
 
-        #recovery state
+        # recovery state
         elif self.state == "recovery":
             self.action.step(self.dt)
-            self.controls           = self.action.controls
-            self.controls.throttle  = 1.0
-            
-            #exit recovery state
+            self.controls = self.action.controls
+            self.controls.throttle = 1.0
+
+            # exit recovery state
             if self.info.my_car.on_ground == True:
-                self.state  = None
+                self.state = None
                 self.action = None
 
-
-        #defence state and offence state
-        elif self.state == "defence" or self.state == "offence":  
-            #select target
+        # defence state and offence state
+        elif self.state == "defence" or self.state == "offence":
+            # select target
             if self.target == None:
-                #large boost
+                # large boost
                 if self.info.my_car.boost <= self.low_boost and norm(self.info.my_car.pos - self.info.ball.pos) > self.max_ball_dist:
                     active_pads = []
                     for pad in self.info.boost_pads:
@@ -156,79 +158,87 @@ class Calculator(BaseAgent):
                     else:
                         self.target = self.info.ball.pos
 
-                #ball        
+                # ball
                 else:
                     self.target = self.info.ball.pos
 
-            forward_target  = dot(self.target - self.info.my_car.pos, self.info.my_car.theta)[0]
-            right_target    = dot(self.target - self.info.my_car.pos, self.info.my_car.theta)[1]
+            forward_target = dot(
+                self.target - self.info.my_car.pos, self.info.my_car.theta)[0]
+            right_target = dot(
+                self.target - self.info.my_car.pos, self.info.my_car.theta)[1]
             angle_to_target = math.atan2(right_target, forward_target)
 
-            forward_goal    = dot(self.info.their_goal.center - self.info.my_car.pos, self.info.my_car.theta)[0]
-            right_goal      = dot(self.info.their_goal.center - self.info.my_car.pos, self.info.my_car.theta)[1]
-            angle_to_goal   = math.atan2(right_goal, forward_goal)
+            forward_goal = dot(self.info.their_goal.center -
+                               self.info.my_car.pos, self.info.my_car.theta)[0]
+            right_goal = dot(self.info.their_goal.center -
+                             self.info.my_car.pos, self.info.my_car.theta)[1]
+            angle_to_goal = math.atan2(right_goal, forward_goal)
 
-            #select maneuver
+            # select manoeuvre
             if not isinstance(self.action, AirDodge):
-                #shooting
-                if norm(self.info.ball.pos - self.info.my_car.pos) < self.dodge_dist and (angle_to_target - (math.pi/10.0) <= angle_to_goal <= angle_to_target + (math.pi/10.0)): 
-                    self.action = AirDodge(self.info.my_car,0.2,self.info.their_goal.center)
-                    self.timer  = 0.0
-                #dodging
+                # shooting
+                if norm(self.info.ball.pos - self.info.my_car.pos) < self.dodge_dist and (angle_to_target - (math.pi/10.0) <= angle_to_goal <= angle_to_target + (math.pi/10.0)):
+                    self.action = AirDodge(
+                        self.info.my_car, 0.2, self.info.their_goal.center)
+                    self.timer = 0.0
+                # dodging
                 elif (-math.pi/24.0) <= angle_to_target <= (math.pi/24.0) and norm(self.info.my_car.vel) > 700 and norm(self.info.ball.pos - self.info.my_car.pos) > 1000 and not self.state == "defence":
-                    self.action = AirDodge(self.info.my_car,0.2,self.target)
-                    self.timer  = 0.0
-                #Drive
+                    self.action = AirDodge(self.info.my_car, 0.2, self.target)
+                    self.timer = 0.0
+                # Drive
                 else:
-                    self.action = Drive(self.info.my_car,self.target,self.target_speed)
-                
-            #exit AirDodge
+                    self.action = Drive(
+                        self.info.my_car, self.target, self.target_speed)
+
+            # exit AirDodge
             else:
                 self.timer += self.dt
                 if self.timer >= 0.5:
                     self.action = None
- 
-            #Drive
+
+            # Drive
             if isinstance(self.action, Drive):
                 speed = norm(self.info.my_car.vel)
-                r = -6.901E-11 * speed**4 + 2.1815E-07 * speed**3 - 5.4437E-06 * speed**2 + 0.12496671 * speed + 157
+                r = -6.901E-11 * speed**4 + 2.1815E-07 * speed**3 - \
+                    5.4437E-06 * speed**2 + 0.12496671 * speed + 157
 
-                #handbrake
+                # handbrake
                 self.drift = False
                 if (math.pi/2.0) <= angle_to_target or angle_to_target <= (-math.pi/2.0):
                     self.drift = True
 
-                #target speed 
-                elif (norm(self.target - (self.info.my_car.pos + dot(self.info.my_car.theta,vec3(0,r,0)))) < r or norm(self.target - (self.info.my_car.pos + dot(self.info.my_car.theta,vec3(0,-r,0)))) < r) and not self.target_speed < self.min_target_s:
+                # target speed
+                elif (norm(self.target - (self.info.my_car.pos + dot(self.info.my_car.theta, vec3(0, r, 0)))) < r or norm(self.target - (self.info.my_car.pos + dot(self.info.my_car.theta, vec3(0, -r, 0)))) < r) and not self.target_speed < self.min_target_s:
                     self.target_speed += -50
-                    self.action = Drive(self.info.my_car,self.target,self.target_speed)
+                    self.action = Drive(
+                        self.info.my_car, self.target, self.target_speed)
                 elif self.target_speed < 1800:
                     self.target_speed += 50
-                    self.action = Drive(self.info.my_car,self.target,self.target_speed)
+                    self.action = Drive(
+                        self.info.my_car, self.target, self.target_speed)
 
-            #maneuver tick
+            # manoeuvre tick
             if self.action != None:
                 self.action.step(self.dt)
-                self.controls   = self.action.controls
+                self.controls = self.action.controls
                 self.controls.handbrake = self.drift
 
-            #exit either state
+            # exit either state
             if (self.state == "defence" and norm(self.info.my_goal.center - self.info.my_car.pos) < norm(self.info.my_goal.center - self.info.ball.pos)) or (norm(self.target - self.info.my_car.pos) < self.target_range):
                 self.state = None
 
-
-        #goal escape state
+        # goal escape state
         if self.state == "goal escape":
             self.action.step(self.dt)
-            self.controls   = self.action.controls
+            self.controls = self.action.controls
 
-            #exit goal escape state
+            # exit goal escape state
             if not (self.info.my_car.pos[1] > 5120 or self.info.my_car.pos[1] < -5120):
-                self.state  = None
+                self.state = None
                 self.action = None
 
         if 'win32gui' in sys.modules:
-            #finding the size of the Rocket League window
+            # finding the size of the Rocket League window
             def callback(hwnd, win_rect):
                 if "Rocket League" in win32gui.GetWindowText(hwnd):
                     rect = win32gui.GetWindowRect(hwnd)
@@ -240,11 +250,10 @@ class Calculator(BaseAgent):
             self.RLwindow = [0] * 4
             win32gui.EnumWindows(callback, self.RLwindow)
 
-        #Rendering
+        # Rendering
         Render.debug(self)
         Render.turn_circles(self)
         if not self.target == None:
             Render.target(self)
-        
 
         return self.controls

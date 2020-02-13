@@ -133,3 +133,7 @@ class Drone:
     def __init__(self, index: int):
         self.index: int = index
         self.ctrl: PlayerInput = PlayerInput()
+
+
+class Ball:
+    pass

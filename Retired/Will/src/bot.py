@@ -11,9 +11,8 @@ from util.sequence import Sequence, ControlStep
 from util.spikes import SpikeWatcher
 from util.vec import Vec3
 
-
-# Would you like to use numpy utilities? Check out the np_util folder!
-
+from states import BaseState, Simple, Kickoff, WallThing, GetBoost
+from numpy import random
 class MyBot(BaseAgent):
 
     def initialize_agent(self):
@@ -22,63 +21,69 @@ class MyBot(BaseAgent):
         self.active_sequence: Sequence = None
         self.spike_watcher = SpikeWatcher()
 
+        self.state = BaseState()
+        self.big_pads = None
+
+    def check_states(self, packet):
+        draw_debug(self.renderer, [str(self.state)])
+
+        if not self.state.active:
+            # if Kickoff.available(self, packet):
+                # self.state = Kickoff
+            if WallThing.available(self, packet):
+                self.state = WallThing()
+            # elif GetBoost.available(self, packet):
+                # self.state = GetBoost()
+            elif Simple.available(self, packet):
+                self.state = Simple()
+
+        return self.state.execute(self, packet)
+
     def get_output(self, packet: GameTickPacket) -> SimpleControllerState:
         """
         This function will be called by the framework many times per second. This is where you can
         see the motion of the ball, etc. and return controls to drive your car.
         """
+        if self.big_pads is None:
+            # Constant values can be found the the FieldInfo:
+            info = self.get_field_info()
+            
+            # Manually construct a list of all big boost pads
+            # info.boost_pads has a fixed size but info.num_boosts is how many pads there actually are
+            self.big_pads = []
+            for i in range(info.num_boosts):
+                pad = info.boost_pads[i]
+                if pad.is_full_boost:
+                    self.big_pads.append((i, pad))
+        
+        self.active_pads = []
+        for i, pad in self.big_pads:
+            if packet.game_boosts[i].is_active:
+                self.active_pads.append(pad)
 
-        # This is good to keep at the beginning of get_output. It will allow you to continue
-        # any sequences that you may have started during a previous call to get_output.
-        if self.active_sequence and not self.active_sequence.done:
-            return self.active_sequence.tick(packet)
 
         self.spike_watcher.read_packet(packet)
         ball_prediction = self.get_ball_prediction_struct()
 
         # Example of predicting a goal event
         predicted_goal = find_future_goal(ball_prediction)
-        goal_text = "No Goal Threats"
+        goal_text = "RIGGED"
         if predicted_goal:
             goal_text = f"Goal in {predicted_goal.time - packet.game_info.seconds_elapsed:.2f}s"
 
-        my_car = packet.game_cars[self.index]
-        car_velocity = Vec3(my_car.physics.velocity)
+        self.renderer.begin_rendering("<3")
+        size = int(30 + 5*random.rand())
+        self.renderer.draw_string_2d(400, 100, size, size, "<3", self.renderer.pink())
+        self.renderer.end_rendering()
 
-        # Example of using a sequence
-        # This will do a front flip if the car's velocity is between 550 and 600
-        if 550 < car_velocity.length() < 600:
-            self.active_sequence = Sequence([
-                ControlStep(0.05, SimpleControllerState(jump=True)),
-                ControlStep(0.05, SimpleControllerState(jump=False)),
-                ControlStep(0.2, SimpleControllerState(jump=True, pitch=-1)),
-                ControlStep(0.8, SimpleControllerState()),
-            ])
+        # This is good to keep at the beginning of get_output. It will allow you to continue
+        # any sequences that you may have started during a previous call to get_output.
+        if self.active_sequence and not self.active_sequence.done:
             return self.active_sequence.tick(packet)
 
-        # Example of using the spike watcher.
-        # This will make the bot say I got it! when it spikes the ball,
-        # then release it 2 seconds later.
-        if self.spike_watcher.carrying_car == my_car:
-            if self.spike_watcher.carry_duration == 0:
-                self.send_quick_chat(QuickChats.CHAT_EVERYONE, QuickChats.Information_IGotIt)
-            elif self.spike_watcher.carry_duration > 2:
-                return SimpleControllerState(use_item=True)
+        ctrl = self.check_states(packet)
 
-        # Example of doing an aerial. This will cause the car to jump and fly toward the
-        # ceiling in the middle of the field.
-        if my_car.boost > 50 and my_car.has_wheel_contact:
-            self.start_aerial(Vec3(0, 0, 2000), packet.game_info.seconds_elapsed + 4)
-
-        # If nothing else interesting happened, just chase the ball!
-        ball_location = Vec3(packet.game_ball.physics.location)
-        self.controller_state.steer = steer_toward_target(my_car, ball_location)
-        self.controller_state.throttle = 1.0
-
-        # Draw some text on the screen
-        draw_debug(self.renderer, [goal_text])
-
-        return self.controller_state
+        return ctrl
 
     def start_aerial(self, target: Vec3, arrival_time: float):
         self.active_sequence = Sequence([
@@ -93,7 +98,7 @@ def draw_debug(renderer, text_lines: List[str]):
     so they don't overlap.
     """
     renderer.begin_rendering()
-    y = 250
+    y = 350
     for line in text_lines:
         renderer.draw_string_2d(50, y, 1, 1, line, renderer.yellow())
         y += 20

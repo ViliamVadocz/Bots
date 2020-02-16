@@ -1,3 +1,8 @@
+# Spike Rush Bot
+
+Hardcoded for orange; made during the Spike Sprint tournament.
+
+
 # RLBotPythonExample
 Example of a python bot using the RLBot framework
 

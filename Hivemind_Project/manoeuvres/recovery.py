@@ -1,13 +1,15 @@
+from typing import Tuple
+
 from rlutilities.linear_algebra import vec3, mat3, norm, normalize, look_at, angle_between, dot, cross
 from rlutilities.simulation import Car, Input, Field, sphere
 from rlutilities.mechanics import AerialTurn
 
 from manoeuvres.manoeuvre import Manoeuvre
 
-BOOST_HEIGHT_COMPENSATION = -2000
-BOOST_ANGLE_DIFFERENCE_TOLERANCE = 0.5
-MINIMUM_BOOST_DISTANCE = 600
-SIMULATION_SPHERE_RADIUS = 20
+BOOST_HEIGHT_COMPENSATION = -1500
+BOOST_ANGLE_DIFFERENCE_TOLERANCE = 0.6
+MINIMUM_BOOST_DISTANCE = 500
+SIMULATION_SPHERE_RADIUS = 40
 GRAVITY = -650
 
 # Thanks Darxeal! https://github.com/Darxeal/BotimusPrime
@@ -20,16 +22,13 @@ class Recovery(Manoeuvre):
         self.aerial_turn = AerialTurn(self.car)
 
     def step(self, dt: float):
-        # Prevent turtling.
-        self.controls.throttle = 1.0
-
         if self.about_to_land:
-            self.aerial_turn.target = self.find_landing_orientation(dt)
+            _position, self.aerial_turn.target = self.find_landing_pos_and_orientation(dt)
             self.aerial_turn.step(dt)
             self.controls = self.aerial_turn.controls
 
         else:
-            landing_pos = self.find_landing_pos(dt)
+            landing_pos, _orientation = self.find_landing_pos_and_orientation(dt)
             under_landing_pos = landing_pos + vec3(0, 0, BOOST_HEIGHT_COMPENSATION)
             landing_dir = normalize(under_landing_pos - self.car.position)
 
@@ -47,30 +46,13 @@ class Recovery(Manoeuvre):
             if norm(self.car.position - landing_pos) < clamp(norm(self.car.velocity), MINIMUM_BOOST_DISTANCE, 2300):
                 self.about_to_land = True
 
-    def find_landing_pos(self, dt, num_points=200) -> vec3:
-        """Simulate the car until it lands and return its final position."""
-        position = vec3(self.car.position)
-        velocity = vec3(self.car.velocity)
-        gravity = vec3(0, 0, GRAVITY)
-        
-        for i in range(num_points):
-            velocity += gravity * dt
-            position += velocity * dt
+        # Prevent turtling.
+        self.controls.throttle = 1.0
+        # Smoother landing.
+        self.controls.handbrake = True
 
-            # Ignore first 10 frames because it might be ceiling.
-            if i < 10:
-                continue
-
-            # Check for collisions with field.
-            collision_normal = Field.collide(sphere(position, SIMULATION_SPHERE_RADIUS)).direction
-            # Break out of simulation when collided.
-            if norm(collision_normal) > 0.0:
-                break
-
-        return position
-
-    def find_landing_orientation(self, dt, num_points=200) -> mat3:
-        """Simulate the car until it lands and return its desired landing orientation."""
+    def find_landing_pos_and_orientation(self, dt, num_points=200) -> Tuple[vec3, mat3]:
+        """Simulate the car until it lands and return its final position and desired orientation."""
         position = vec3(self.car.position)
         velocity = vec3(self.car.velocity)
         gravity = vec3(0, 0, GRAVITY)
@@ -93,10 +75,9 @@ class Recovery(Manoeuvre):
                 break
 
         # If we don't break we return the current orientation.
-        else:
-            return self.car.orientation
+        else: return position, self.car.orientation
 
-        return three_vec3_to_mat3(forward, left, collision_normal)
+        return position, three_vec3_to_mat3(forward, left, collision_normal)
 
 
 def three_vec3_to_mat3(f, l, u):

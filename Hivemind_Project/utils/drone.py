@@ -1,3 +1,5 @@
+from math import inf
+
 from rlbot.utils.structures.bot_input_struct import PlayerInput
 
 class Drone:
@@ -7,3 +9,4 @@ class Drone:
         self.controls = PlayerInput()
 
         self.recovery = None
+        self.time_on_ground = inf

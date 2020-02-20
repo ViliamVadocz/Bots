@@ -5,6 +5,7 @@ from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.agents.hivemind.python_hivemind import PythonHivemind
 
 from rlutilities.simulation import Game
+from rlutilities.mechanics import Wavedash
 
 from utils.drone import Drone
 
@@ -41,16 +42,24 @@ class Overmind(PythonHivemind):
         for drone in self.drones:
             car = self.game.cars[drone.index]
 
-            if not car.on_ground:
+            # Handle time_on_ground
+            if car.on_ground: 
+                drone.time_on_ground += self.game.time_delta
+            else:
+                drone.time_on_ground = 0.0
+            
+            # Recovery time!
+            if drone.time_on_ground < 0.2:
                 if drone.recovery is None:
                     drone.recovery = Recovery(car)
+
                 drone.recovery.step(self.game.time_delta)
                 drone.controls = to_player_input(drone.recovery.controls)
 
+            # Reset after recovery.
             else:
                 drone.recovery = None
-
-            drone.controls.throttle = 1.0
+                drone.controls.throttle = 1.0
 
         return self.make_drone_controls_dict()
 

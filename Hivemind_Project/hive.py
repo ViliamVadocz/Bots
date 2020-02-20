@@ -56,6 +56,12 @@ class Overmind(PythonHivemind):
                 drone.recovery.step(self.game.time_delta)
                 drone.controls = to_player_input(drone.recovery.controls)
 
+                # Render things.
+                self.renderer.begin_rendering(str(drone))
+                self.renderer.draw_string_3d(car.position, 2, 2, str(drone.recovery.about_to_land), self.renderer.pink())
+                self.renderer.draw_string_2d(100, 100, 5, 5, str(drone.recovery.aerial_turn.target), self.renderer.red())
+                self.renderer.end_rendering()
+
             # Reset after recovery.
             else:
                 drone.recovery = None

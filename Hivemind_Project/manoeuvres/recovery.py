@@ -7,9 +7,9 @@ from rlutilities.mechanics import AerialTurn
 from manoeuvres.manoeuvre import Manoeuvre
 from utils.random import three_vec3_to_mat3, clamp
 
-BOOST_HEIGHT_COMPENSATION = -1500
+BOOST_HEIGHT_COMPENSATION = -2000
 BOOST_ANGLE_DIFFERENCE_TOLERANCE = 0.5
-MINIMUM_BOOST_DISTANCE = 500
+MINIMUM_RECOVERY_TIME = 0.5
 WAVE_DASH_PITCH_UP = 0.3
 # WAVE_DASH_TIME = 0.18
 SIMULATION_SPHERE_RADIUS = 40
@@ -26,6 +26,9 @@ class Recovery(Manoeuvre):
         self.aerial_turn = AerialTurn(self.car)
 
     def step(self, dt: float):
+        self.controls.boost = False
+
+        # Prepare for landing.
         if self.about_to_land:
             _landing_pos, orientation = self.find_landing_pos_and_orientation(dt)
 
@@ -33,6 +36,7 @@ class Recovery(Manoeuvre):
             self.aerial_turn.step(dt)
             self.controls = self.aerial_turn.controls
 
+        # Boost down.
         else:
             landing_pos, _orientation = self.find_landing_pos_and_orientation(dt)
             under_landing_pos = landing_pos + vec3(0, 0, BOOST_HEIGHT_COMPENSATION)
@@ -44,18 +48,16 @@ class Recovery(Manoeuvre):
 
             # Boost down when the angle is right.
             if angle_between(self.car.forward(), landing_dir) < BOOST_ANGLE_DIFFERENCE_TOLERANCE:
-                self.controls.boost = True
-            else:
-                self.controls.boost = False
+                self.controls.boost = True                
 
             # When nearing landing position start recovery.
-            if norm(self.car.position - landing_pos) < clamp(norm(self.car.velocity), MINIMUM_BOOST_DISTANCE, 2300):
+            distance = norm(self.car.position - landing_pos)
+            if self.car.boost == 0.0 or landing_pos[2] > 1000 or distance / norm(self.car.velocity) < MINIMUM_RECOVERY_TIME:
                 self.about_to_land = True
 
         # If the car is upside down and has wheel contact, jump.
         if self.jump_when_upside_down and \
             self.car.on_ground and dot(self.car.up(), vec3(0, 0, 1)) < -0.95:
-                print(f'~ UPSIDE DOWN JUMP ~ dot: {dot(self.car.up(), vec3(0, 0, 1))}')
                 self.controls.jump = True
                 self.about_to_land = False
 

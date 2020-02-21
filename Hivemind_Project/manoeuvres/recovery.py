@@ -12,7 +12,8 @@ BOOST_ANGLE_DIFFERENCE_TOLERANCE = 0.5
 MINIMUM_RECOVERY_TIME = 0.5
 WAVE_DASH_PITCH_UP = 0.3
 # WAVE_DASH_TIME = 0.18
-SIMULATION_SPHERE_RADIUS = 20
+SIMULATION_SPHERE_RADIUS = 40
+SIMULATION_DT = 1 / 60
 GRAVITY = -650
 
 class Recovery(Manoeuvre):
@@ -29,7 +30,7 @@ class Recovery(Manoeuvre):
 
         # Prepare for landing.
         if self.about_to_land:
-            _landing_pos, orientation = self.find_landing_pos_and_orientation(dt)
+            _landing_pos, orientation = self.find_landing_pos_and_orientation(SIMULATION_DT)
 
             self.aerial_turn.target = orientation
             self.aerial_turn.step(dt)
@@ -37,7 +38,7 @@ class Recovery(Manoeuvre):
 
         # Boost down.
         else:
-            landing_pos, _orientation = self.find_landing_pos_and_orientation(dt)
+            landing_pos, _orientation = self.find_landing_pos_and_orientation(SIMULATION_DT)
             under_landing_pos = landing_pos + vec3(0, 0, BOOST_HEIGHT_COMPENSATION)
             landing_dir = normalize(under_landing_pos - self.car.position)
 
@@ -50,9 +51,14 @@ class Recovery(Manoeuvre):
                 self.controls.boost = True                
 
             # When nearing landing position start recovery.
-            distance = norm(self.car.position - landing_pos)
-            if self.car.boost == 0.0 or landing_pos[2] > 1000 or distance / norm(self.car.velocity) < MINIMUM_RECOVERY_TIME:
+            if self.car.boost == 0.0 or landing_pos[2] > 1000:
                 self.about_to_land = True
+            else:
+                # In else so that we don't calculate if we don't have to.
+                distance = norm(self.car.position - landing_pos)
+                speed = norm(self.car.velocity)
+                if speed > 2200 or (speed != 0.0 and distance / speed < MINIMUM_RECOVERY_TIME):
+                    self.about_to_land = True
 
         # If the car is upside down and has wheel contact, jump.
         if self.jump_when_upside_down and \
@@ -91,6 +97,8 @@ class Recovery(Manoeuvre):
                 break
 
         # If we don't break we return the current orientation.
-        else: return position, self.car.orientation
+        else:
+            print("MY OWN ORIENTATION!!!! AAAAAAAAAHHHH!!!!") #XXX
+            return position, self.car.orientation
 
         return position, three_vec3_to_mat3(forward, left, collision_normal)

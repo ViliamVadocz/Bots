@@ -9,4 +9,5 @@ class Drone:
         self.controls = PlayerInput()
 
         self.recovery = None
+        self.half_flip = None
         self.time_on_ground = inf

@@ -1,15 +1,17 @@
 from typing import Dict
 
+from rlbot.agents.hivemind.python_hivemind import PythonHivemind
 from rlbot.utils.structures.bot_input_struct import PlayerInput
 from rlbot.utils.structures.game_data_struct import GameTickPacket
-from rlbot.agents.hivemind.python_hivemind import PythonHivemind
 
-from rlutilities.simulation import Game
+from rlutilities.linear_algebra import dot, norm, normalize
 from rlutilities.mechanics import Wavedash
+from rlutilities.simulation import Game
 
 from utils.drone import Drone
 
 from manoeuvres.recovery import Recovery
+from manoeuvres.half_flip import HalfFlip
 
 class Overmind(PythonHivemind):
 
@@ -38,7 +40,6 @@ class Overmind(PythonHivemind):
         for drone in self.drones:
             drone.controls = PlayerInput()
 
-        # Test recovery.
         for drone in self.drones:
             car = self.game.cars[drone.index]
 
@@ -48,24 +49,39 @@ class Overmind(PythonHivemind):
             else:
                 drone.time_on_ground = 0.0
             
-            # Recovery time!
-            if drone.time_on_ground < 0.2:
-                if drone.recovery is None:
-                    drone.recovery = Recovery(car)
+            # # Recovery time!
+            # if drone.time_on_ground < 0.2 :
+            #     if drone.recovery is None:
+            #         drone.recovery = Recovery(car)
 
-                drone.recovery.step(self.game.time_delta)
-                drone.controls = to_player_input(drone.recovery.controls)
+            #     drone.recovery.step(self.game.time_delta)
+            #     drone.controls = to_player_input(drone.recovery.controls)
 
-                # Render things.
-                self.renderer.begin_rendering(str(drone))
-                self.renderer.draw_string_3d(car.position, 2, 2, str(drone.recovery.about_to_land), self.renderer.pink())
-                self.renderer.draw_string_2d(100, 100, 5, 5, str(drone.recovery.aerial_turn.target), self.renderer.red())
-                self.renderer.end_rendering()
+            #     # Render things.
+            #     self.renderer.begin_rendering(str(drone))
+            #     self.renderer.draw_string_3d(car.position, 2, 2, str(drone.recovery.about_to_land), self.renderer.pink())
+            #     self.renderer.draw_string_2d(100, 100, 5, 5, str(drone.recovery.aerial_turn.target), self.renderer.red())
+            #     self.renderer.end_rendering()
 
-            # Reset after recovery.
+            # else:
+            #     # Reset after recovery.
+            #     drone.recovery = None
+            #     drone.controls.throttle = 1.0
+    
+            # If going backwards, do a half-flip.
+            if drone.half_flip is None:
+                speed = norm(car.velocity)
+                if speed > 500 and dot(normalize(car.velocity), car.forward()) < -0.5:
+                    drone.half_flip = HalfFlip(car)
+
+                drone.controls.throttle = -1.0
+
             else:
-                drone.recovery = None
-                drone.controls.throttle = 1.0
+                drone.half_flip.step(self.game.time_delta)
+                drone.controls = to_player_input(drone.half_flip.controls)
+
+                if drone.half_flip.finished:
+                    drone.half_flip = None
 
         return self.make_drone_controls_dict()
 

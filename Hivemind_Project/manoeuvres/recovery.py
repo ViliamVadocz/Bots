@@ -1,8 +1,8 @@
 from typing import Tuple
 
 from rlutilities.linear_algebra import vec3, mat3, norm, normalize, look_at, angle_between, dot, cross, euler_to_rotation
-from rlutilities.simulation import Car, Input, Field, sphere
 from rlutilities.mechanics import AerialTurn
+from rlutilities.simulation import Car, Field, sphere
 
 from manoeuvres.manoeuvre import Manoeuvre
 from utils.random import three_vec3_to_mat3, clamp
@@ -12,13 +12,12 @@ BOOST_ANGLE_DIFFERENCE_TOLERANCE = 0.5
 MINIMUM_RECOVERY_TIME = 0.5
 WAVE_DASH_PITCH_UP = 0.3
 # WAVE_DASH_TIME = 0.18
-SIMULATION_SPHERE_RADIUS = 40
+SIMULATION_SPHERE_RADIUS = 20
 GRAVITY = -650
 
-# Thanks Darxeal! https://github.com/Darxeal/BotimusPrime
 class Recovery(Manoeuvre):
 
-    def __init__(self, car, jump_when_upside_down=True):
+    def __init__(self, car: Car, jump_when_upside_down=True):
         super().__init__(car)
 
         self.jump_when_upside_down = jump_when_upside_down

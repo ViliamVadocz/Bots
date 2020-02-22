@@ -16,6 +16,7 @@ SIMULATION_SPHERE_RADIUS = 40
 SIMULATION_DT = 1 / 60
 GRAVITY = -650
 
+
 class Recovery(Manoeuvre):
 
     def __init__(self, car: Car, jump_when_upside_down=True):
@@ -23,6 +24,8 @@ class Recovery(Manoeuvre):
 
         self.jump_when_upside_down = jump_when_upside_down
         self.about_to_land = False
+
+        # RLU Mechanic setup
         self.aerial_turn = AerialTurn(self.car)
 
     def step(self, dt: float):
@@ -47,8 +50,8 @@ class Recovery(Manoeuvre):
             self.controls = self.aerial_turn.controls
 
             # Boost down when the angle is right.
-            if angle_between(self.car.forward(), landing_dir) < BOOST_ANGLE_DIFFERENCE_TOLERANCE:
-                self.controls.boost = True                
+            self.controls.boost = angle_between(
+                self.car.forward(), landing_dir) < BOOST_ANGLE_DIFFERENCE_TOLERANCE
 
             # When nearing landing position start recovery.
             if self.car.boost == 0.0 or landing_pos[2] > 1000:
@@ -62,9 +65,9 @@ class Recovery(Manoeuvre):
 
         # If the car is upside down and has wheel contact, jump.
         if self.jump_when_upside_down and \
-            self.car.on_ground and dot(self.car.up(), vec3(0, 0, 1)) < -0.95:
-                self.controls.jump = True
-                self.about_to_land = False
+                self.car.on_ground and dot(self.car.up(), vec3(0, 0, 1)) < -0.95:
+            self.controls.jump = True
+            self.about_to_land = False
 
         # Prevent turtling.
         self.controls.throttle = 1.0
@@ -80,7 +83,8 @@ class Recovery(Manoeuvre):
         for i in range(num_points):
             velocity += gravity * dt
             speed = norm(velocity)
-            if speed > 2300: velocity = velocity/speed * 2300
+            if speed > 2300:
+                velocity = velocity/speed * 2300
             position += velocity * dt
 
             # Ignore first 10 frames because it might be ceiling.
@@ -88,17 +92,19 @@ class Recovery(Manoeuvre):
                 continue
 
             # Check for collisions with field.
-            collision_normal = Field.collide(sphere(position, SIMULATION_SPHERE_RADIUS)).direction
+            collision_normal = Field.collide(
+                sphere(position, SIMULATION_SPHERE_RADIUS)).direction
             # Break out of simulation when collided.
             if norm(collision_normal) > 0.0:
                 # Flatten velocity with regards to normal to get forward.
-                forward = normalize(velocity - dot(velocity, collision_normal) * collision_normal)
+                forward = normalize(
+                    velocity - dot(velocity, collision_normal) * collision_normal)
                 left = normalize(cross(collision_normal, forward))
                 break
 
         # If we don't break we return the current orientation.
         else:
-            print("MY OWN ORIENTATION!!!! AAAAAAAAAHHHH!!!!") #XXX
+            print("USING CAR'S CURRENT ORIENTATION") # XXX debugging
             return position, self.car.orientation
 
         return position, three_vec3_to_mat3(forward, left, collision_normal)

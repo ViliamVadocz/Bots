@@ -10,22 +10,25 @@ STALL_END = 0.7
 BOOST_DELAY = 0.4
 TIMEOUT = 2.0
 
+
 class HalfFlip(Manoeuvre):
 
     def __init__(self, car: Car, use_boost=False):
         super().__init__(car)
 
         self.use_boost = use_boost
+        self.timer = 0.0
+
+        # RLU Mechanic setup
         self.dodge = Dodge(car)
         self.dodge.duration = DODGE_DURATION
         self.dodge.direction = vec2(-1 * car.forward())
 
-        self.timer = 0.0
-
-    def step(self, dt:float):
+    def step(self, dt: float):
 
         self.dodge.step(dt)
         self.controls = self.dodge.controls
+        self.controls.handbrake = True
 
         if STALL_START < self.timer < STALL_END:
             self.controls.roll = 0.0

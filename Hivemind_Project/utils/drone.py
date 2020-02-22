@@ -10,4 +10,5 @@ class Drone:
 
         self.recovery = None
         self.half_flip = None
+        self.aerial = None
         self.time_on_ground = inf

@@ -1,3 +1,4 @@
+from math import isnan
 from typing import Tuple
 
 from rlutilities.linear_algebra import vec3, mat3, norm, normalize, look_at, angle_between, dot, cross, euler_to_rotation
@@ -37,6 +38,7 @@ class Recovery(Manoeuvre):
 
             self.aerial_turn.target = orientation
             self.aerial_turn.step(dt)
+            self.alpha_check(dt, orientation)
             self.controls = self.aerial_turn.controls
 
         # Boost down.
@@ -45,8 +47,10 @@ class Recovery(Manoeuvre):
             under_landing_pos = landing_pos + vec3(0, 0, BOOST_HEIGHT_COMPENSATION)
             landing_dir = normalize(under_landing_pos - self.car.position)
 
-            self.aerial_turn.target = look_at(landing_dir, vec3(0, 0, 1))
+            orientation = look_at(landing_dir, vec3(0, 0, 1))
+            self.aerial_turn.target = orientation
             self.aerial_turn.step(dt)
+            self.alpha_check(dt, orientation)
             self.controls = self.aerial_turn.controls
 
             # Boost down when the angle is right.
@@ -108,3 +112,14 @@ class Recovery(Manoeuvre):
             return position, self.car.orientation
 
         return position, three_vec3_to_mat3(forward, left, collision_normal)
+
+    def alpha_check(self, dt: float, orientation: mat3):
+        """Check for NaN in alpha, reset it if there are some."""
+        for i in range(3):
+            value = self.aerial_turn.alpha[i]
+            if isnan(value):
+                print("FOUND NAN") # XXX debugging
+                self.aerial_turn = AerialTurn(self.car)
+                self.aerial_turn.target = orientation
+                self.aerial_turn.step(dt)
+                break

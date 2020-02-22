@@ -20,7 +20,7 @@ class Message:
 
 TESTS = {
     "single_bot": ["ceiling_recovery1", "ceiling_recovery2"],
-    "three_bots": ["kickoff"],
+    # "three_bots": ["kickoff"],
 }
 
 

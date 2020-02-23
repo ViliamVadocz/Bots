@@ -142,7 +142,7 @@ class Game():
     def set_mode(arg0: str) -> None: ...
 
     ball: Ball
-    cars: List[Car]
+    cars: List[Car[8]]
     frame: int
     frame_delta: int
     id: int

@@ -572,7 +572,7 @@ class GetBoost(BaseState):
             if agent.player.pos[2] < 20 and np.linalg.norm(self.target_pad.pos - agent.player.pos) > 1500 \
                 and (800 < np.dot(normalise(self.target_pad.pos - agent.player.pos), agent.player.vel) < 1500):
                 self.expired = True
-                agent.state = Dodge(agent.target_pad.pos)
+                agent.state = Dodge(self.target_pad.pos)
 
             agent.ctrl = simple(agent, self.target_pad.pos)
         super().execute(agent)

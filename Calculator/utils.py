@@ -385,11 +385,28 @@ def linear_predict(start_pos, start_vel, start_time, seconds) -> Prediction:
     Returns:
         Prediction -- linear prediction, 60 tps.
     """
-    time = np.linspace(0, seconds, 60*seconds)[:,np.newaxis]
+    time = np.linspace(0, seconds, int(60*seconds))[:, np.newaxis]
     pos = start_pos + time * start_vel
     vel = np.ones_like(time) * start_vel
     time += start_time
     return Prediction(pos, vel, time)
+
+
+# def circular_predict(start_pos, start_vel, angular_vel, start_time, seconds) -> Prediction:
+#     """Predicts motion of object in a circle. (Only on ground)"""
+#     radius = np.linalg.norm(start_vel) / angular_vel
+#     centre = start_pos - radius * np.cross(normalise(start_vel), np.array([0, 0, 1]))
+#     centre[2] = 20
+#     theta = np.linspace(0, angular_vel*seconds, int(60*seconds))[:, np.newaxis]
+#     cos = np.cos(theta)
+#     sin = np.sin(theta)
+#     zeros = np.zeros_like(theta)
+#     pos = radius * np.hstack((cos, sin, zeros)) + centre
+#     print(pos)
+#     vel = np.hstack((-sin, cos, zeros)) * np.linalg.norm(start_vel)
+#     time = start_time + np.linspace(0, seconds, int(60*seconds))
+#     return Prediction(pos, vel, time)
+
 
 # -----------------------------------------------------------
 

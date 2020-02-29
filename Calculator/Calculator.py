@@ -8,7 +8,7 @@ from rlbot.utils.structures.quick_chats import QuickChats
 # Local file imports.
 import data
 from utils import np, a3l, normalise, local, cap, team_sign, special_sauce
-from states import Idle, Kickoff, Catch, PickUp, Dribble, SimplePush, GetBoost, Dodge, orange_inside_goal
+from states import Idle, Kickoff, Catch, PickUp, Dribble, SimplePush, GetBoost, Dodge, DemoOpponent, orange_inside_goal
 
 class Calculator(BaseAgent):
 
@@ -35,16 +35,28 @@ class Calculator(BaseAgent):
         if self.state.expired:
             if Kickoff.available(self):
                 self.state = Kickoff()
-            elif Dribble.available(self):
-                self.state = Dribble()
-            elif PickUp.available(self):
-                self.state = PickUp()
-            elif Catch.available(self):
-                self.state = Catch()
-            elif GetBoost.available(self):
-                self.state = GetBoost()
+            
+            # Always go for demos if not lowest index on team.
+            if len(self.teammates) > 0 \
+                and min(min(self.teammates, key=lambda x: x.index).index, self.index) != self.index :
+                if DemoOpponent.available(self):
+                    self.state = DemoOpponent()
+                else:
+                    self.state = GetBoost()
+                
+
+            # Otherwise do normal Calculator Stuff
             else:
-                self.state = SimplePush()
+                if Dribble.available(self):
+                    self.state = Dribble()
+                elif PickUp.available(self):
+                    self.state = PickUp()
+                elif Catch.available(self):
+                    self.state = Catch()
+                elif GetBoost.available(self):
+                    self.state = GetBoost()
+                else:
+                    self.state = SimplePush()
 
 
     def get_output(self, packet: GameTickPacket) -> SimpleControllerState:
@@ -119,6 +131,6 @@ class Calculator(BaseAgent):
 
     def render(self, r):
         r.begin_rendering()
-        r.draw_string_2d(150, 10, 2, 2, f'{self.state.__class__.__name__}', r.white())
+        r.draw_string_2d(150, 50+(50*self.index), 2, 2, f'Calc{self.index} state: {self.state.__class__.__name__}', r.team_color(self.team))
         r.draw_polyline_3d(self.ball.predict.pos[:120:10], r.pink())
         r.end_rendering()

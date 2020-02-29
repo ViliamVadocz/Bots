@@ -103,8 +103,8 @@ def process(self, packet):
         opponent.pos        = a3v(packet.game_cars[opponent.index].physics.location)
         #opponent.rot        = a3r(packet.game_cars[opponent.index].physics.rotation)
         opponent.vel        = a3v(packet.game_cars[opponent.index].physics.velocity)
-        #opponent.ang_vel    = a3v(packet.game_cars[opponent.index].physics.angular_velocity)
-        #opponent.dead       = packet.game_cars[opponent.index].is_demolished
+        opponent.ang_vel    = a3v(packet.game_cars[opponent.index].physics.angular_velocity)
+        opponent.dead       = packet.game_cars[opponent.index].is_demolished
         #opponent.wheel_c    = packet.game_cars[opponent.index].has_wheel_contact
         #opponent.sonic      = packet.game_cars[opponent.index].is_super_sonic
         #opponent.jumped     = packet.game_cars[opponent.index].jumped

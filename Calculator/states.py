@@ -2,7 +2,7 @@
 
 from rlbot.agents.base_agent import SimpleControllerState
 
-from utils import np, a3l, local, world, angle_between_vectors, normalise, cap, aerial_input_generate, team_sign, linear_predict, special_sauce
+from utils import np, a3l, local, world, angle_between_vectors, normalise, cap, aerial_input_generate, team_sign, linear_predict, special_sauce #circular_predict 
 
 blue_inside_goal = a3l([0, -5120, 0])
 orange_inside_goal = a3l([0, 5120, 0])
@@ -506,7 +506,7 @@ class SimplePush(BaseState):
         agent.ctrl = simple(agent, target)
         agent.ctrl.boost = False
 
-        # Dodge when far away..
+        # Dodge when far away.
         if agent.player.pos[2] < 20 and distance > 1500 and (1000 < np.dot(normalise(agent.ball.pos-agent.player.pos), agent.player.vel) < 2000):
             self.expired = True
             agent.state = Dodge(agent.ball.pos)
@@ -563,14 +563,81 @@ class GetBoost(BaseState):
             self.expired = True
             
         # Dodge when far away.
-        if agent.player.pos[2] < 20 and np.linalg.norm(self.target_pad.pos-agent.player.pos) > 1500 \
-            and (1000 < np.dot(normalise(agent.ball.pos-agent.player.pos), agent.player.vel) < 2000):
+        if agent.player.pos[2] < 20 and np.linalg.norm(self.target_pad.pos - agent.player.pos) > 1500 \
+            and (1000 < np.dot(normalise(agent.ball.pos - agent.player.pos), agent.player.vel) < 2000):
             self.expired = True
             agent.state = Dodge(agent.ball.pos)
 
         agent.ctrl = simple(agent, self.target_pad.pos)
         super().execute(agent)
 
+
+
+class DemoOpponent(BaseState):
+    def __init__(self):
+        super().__init__()
+        self.target = None
+        self.dodge = None
+
+    @staticmethod
+    def available(agent):
+        # # Make sure I am not the closest to ball.
+        # my_dist_to_ball = np.linalg.norm(agent.player.pos - agent.ball.pos)
+        # for teammate in agent.teammates:
+        #     team_dist_to_ball = np.linalg.norm(teammate.pos - agent.ball.pos)
+        #     if team_dist_to_ball - 300 < my_dist_to_ball:
+        #         return False
+
+        opponents_exist = len(agent.opponents) > 0
+        good_boost = agent.player.boost > 80
+        # have_speed = np.linalg.norm(agent.player.vel) > 600
+        return opponents_exist and good_boost #and have_speed
+
+    def execute(self, agent):
+        super().execute(agent)
+
+        # Pick closest opponent to opponent's goal as target.
+        if self.target is None:
+            opponent_goal = team_sign(agent.team) * orange_inside_goal
+            closest = agent.opponents[0]
+            closest_distance = np.linalg.norm(closest.pos - opponent_goal)
+            for opponent in agent.opponents[1::]:
+                distance = np.linalg.norm(opponent.pos - opponent_goal)
+                if distance < closest_distance:
+                    closest_distance = distance
+                    closest = opponent
+            self.target = opponent
+
+        player_to_target = self.target.pos - agent.player.pos
+        distance_to_target = np.linalg.norm(player_to_target)
+        velocity_at_target = np.dot(player_to_target, normalise(agent.player.vel))
+        if velocity_at_target == 0:
+            time_left = 3
+        else:
+            speed = np.linalg.norm(agent.player.vel)
+            time_left = cap(distance_to_target / speed, 2/60, 3)
+
+        # Predict target's movement.
+        # z_ang_vel = self.target.ang_vel[2]
+        # if distance_to_target > 800 and abs(z_ang_vel) > 0.05:
+        #     prediction = circular_predict(self.target.pos, self.target.vel, z_ang_vel, agent.game_time, time_left)
+        
+        prediction = linear_predict(self.target.pos, self.target.vel, agent.game_time, time_left)
+
+        agent.renderer.begin_rendering('State')
+        agent.renderer.draw_polyline_3d(prediction.pos, agent.renderer.yellow())
+        agent.renderer.end_rendering()
+
+        # Get to the last predicted position ASAP.
+        agent.ctrl = simple(agent, prediction.pos[-1])
+
+        # # Dodge when far away.
+        # if agent.player.pos[2] < 20 and distance_to_target > 1500 and (1000 < velocity_at_target < 1500):
+        #     self.expired = True
+        #     agent.state = Dodge(self.target.pos)
+
+        if np.linalg.norm(agent.player.vel) < 500 or self.target.dead:
+            self.expired = True
 
 
 # -----------------------------------------------------------
@@ -594,7 +661,8 @@ def simple(agent, target):
     # Handbrake if large angle.
     if abs(angle) > 1.65:
         ctrl.handbrake = True
-    elif abs(angle) < 0.3:
+
+    elif abs(angle) < 0.3 and np.linalg.norm(agent.player.vel) < 2200:
         ctrl.boost = True
 
     return ctrl

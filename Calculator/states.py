@@ -534,8 +534,10 @@ class GetBoost(BaseState):
             for pad in agent.l_pads:
                 if pad.active:
                     pad_distance = np.linalg.norm(pad.pos - agent.player.pos)
+                    # Closer than 500 uu.
                     if pad_distance < 500:
                         return True
+                    # Closer than ball bt 700 uu.
                     elif pad_distance + 700 < ball_distance:
                         return True
 
@@ -543,14 +545,17 @@ class GetBoost(BaseState):
 
     def execute(self, agent):
 
+        # Pick a pad.
         if self.target_pad is None:
             ball_distance = np.linalg.norm(agent.ball.pos - agent.player.pos)
             for pad in agent.l_pads:
                 if pad.active:
                     pad_distance = np.linalg.norm(pad.pos - agent.player.pos)
+                    # Closer than 500 uu.
                     if pad_distance < 500:
                         self.target_pad = pad
                         break
+                    # Closer than ball bt 700 uu.
                     elif pad_distance + 700 < ball_distance:
                         self.target_pad = pad
                         break
@@ -559,14 +564,57 @@ class GetBoost(BaseState):
         if self.target_pad is None:
             self.expired = True
 
+        else:
+            if agent.player.boost >= 80 or not self.target_pad.active:
+                self.expired = True
+            
+            # Dodge when far away.
+            if agent.player.pos[2] < 20 and np.linalg.norm(self.target_pad.pos - agent.player.pos) > 1500 \
+                and (800 < np.dot(normalise(self.target_pad.pos - agent.player.pos), agent.player.vel) < 1500):
+                self.expired = True
+                agent.state = Dodge(agent.target_pad.pos)
+
+            agent.ctrl = simple(agent, self.target_pad.pos)
+        super().execute(agent)
+
+
+
+class GetBoostDesperate(BaseState):
+
+    def __init__(self):
+        super().__init__()
+        self.target_pad = None
+
+    def execute(self, agent):
+        
+        # Pick a pad.
+        if self.target_pad is None:
+            # Automatically go to large one if it's in 500 uu radius.
+            for pad in agent.l_pads:
+                if pad.active:
+                    pad_distance = np.linalg.norm(pad.pos - agent.player.pos)
+                    if pad_distance < 500:
+                        self.target_pad = pad
+                        break
+                            
+        # If still nothing, pick the closest pad, even small.
+        if self.target_pad is None:
+            closest_pad = agent.active_pads[0]
+            closest_dist = np.linalg.norm(closest_pad.pos - agent.player.pos)
+            for pad in agent.active_pads:
+                distance = np.linalg.norm(pad.pos - agent.player.pos)
+                if distance < closest_dist:
+                    closest_pad = pad
+                    closest_dist = distance
+        
         if agent.player.boost >= 80 or not self.target_pad.active:
             self.expired = True
-            
+        
         # Dodge when far away.
         if agent.player.pos[2] < 20 and np.linalg.norm(self.target_pad.pos - agent.player.pos) > 1500 \
-            and (1000 < np.dot(normalise(agent.ball.pos - agent.player.pos), agent.player.vel) < 2000):
+            and (800 < np.dot(normalise(self.target_pad.pos - agent.player.pos), agent.player.vel) < 1500):
             self.expired = True
-            agent.state = Dodge(agent.ball.pos)
+            agent.state = Dodge(self.target_pad.pos)
 
         agent.ctrl = simple(agent, self.target_pad.pos)
         super().execute(agent)
@@ -606,7 +654,7 @@ class DemoOpponent(BaseState):
                 if distance < closest_distance:
                     closest_distance = distance
                     closest = opponent
-            self.target = opponent
+            self.target = closest
 
         player_to_target = self.target.pos - agent.player.pos
         distance_to_target = np.linalg.norm(player_to_target)
@@ -629,7 +677,11 @@ class DemoOpponent(BaseState):
         agent.renderer.end_rendering()
 
         # Get to the last predicted position ASAP.
-        agent.ctrl = simple(agent, prediction.pos[-1])
+        if distance_to_target > 300:
+            target = prediction.pos[-1]
+        else:
+            target = self.target.pos
+        agent.ctrl = simple(agent, target)
 
         # # Dodge when far away.
         # if agent.player.pos[2] < 20 and distance_to_target > 1500 and (1000 < velocity_at_target < 1500):

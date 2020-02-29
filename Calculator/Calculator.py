@@ -8,7 +8,7 @@ from rlbot.utils.structures.quick_chats import QuickChats
 # Local file imports.
 import data
 from utils import np, a3l, normalise, local, cap, team_sign, special_sauce
-from states import Idle, Kickoff, Catch, PickUp, Dribble, SimplePush, GetBoost, Dodge, DemoOpponent, orange_inside_goal
+from states import Idle, Kickoff, Catch, PickUp, Dribble, SimplePush, GetBoost, Dodge, DemoOpponent, GetBoostDesperate, orange_inside_goal
 
 class Calculator(BaseAgent):
 
@@ -42,7 +42,7 @@ class Calculator(BaseAgent):
                 if DemoOpponent.available(self):
                     self.state = DemoOpponent()
                 else:
-                    self.state = GetBoost()
+                    self.state = GetBoostDesperate()
                 
 
             # Otherwise do normal Calculator Stuff

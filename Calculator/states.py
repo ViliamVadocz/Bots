@@ -472,7 +472,10 @@ class Dodge(BaseState):
 
             agent.ctrl.jump = True
             agent.ctrl.pitch = -direction[0]
-            agent.ctrl.yaw = direction[1]        
+            agent.ctrl.yaw = direction[1]
+
+            if local(agent.player.orient_m, a3l([0,0,0]), normalise(agent.player.vel))[0] < 0.7:
+                agent.ctrl.boost = False
         else:
             self.expired = True
 
@@ -587,25 +590,16 @@ class GetBoostDesperate(BaseState):
 
     def execute(self, agent):
         
-        # Pick a pad.
+        # Pick closest large pad.
         if self.target_pad is None:
-            # Automatically go to large one if it's in 500 uu radius.
+            closest_pad = agent.l_pads[0]
+            closest_dist = float('inf')
             for pad in agent.l_pads:
                 if pad.active:
                     pad_distance = np.linalg.norm(pad.pos - agent.player.pos)
-                    if pad_distance < 500:
-                        self.target_pad = pad
-                        break
-                            
-        # If still nothing, pick the closest pad, even small.
-        if self.target_pad is None:
-            closest_pad = agent.active_pads[0]
-            closest_dist = np.linalg.norm(closest_pad.pos - agent.player.pos)
-            for pad in agent.active_pads:
-                distance = np.linalg.norm(pad.pos - agent.player.pos)
-                if distance < closest_dist:
-                    closest_pad = pad
-                    closest_dist = distance
+                    if pad_distance < closest_dist:
+                        closest_pad = pad
+                        closest_dist = pad_distance
             self.target_pad = closest_pad
         
         if agent.player.boost >= 80 or not self.target_pad.active:
@@ -638,7 +632,7 @@ class DemoOpponent(BaseState):
         #         return False
 
         opponents_exist = len(agent.opponents) > 0
-        good_boost = agent.player.boost > 80
+        good_boost = agent.player.boost > 50
         # have_speed = np.linalg.norm(agent.player.vel) > 600
         return opponents_exist and good_boost #and have_speed
 
@@ -678,7 +672,7 @@ class DemoOpponent(BaseState):
         agent.renderer.end_rendering()
 
         # Get to the last predicted position ASAP.
-        if distance_to_target > 300:
+        if 2500 > distance_to_target > 300:
             target = prediction.pos[-1]
         else:
             target = self.target.pos

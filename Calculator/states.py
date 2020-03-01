@@ -606,6 +606,7 @@ class GetBoostDesperate(BaseState):
                 if distance < closest_dist:
                     closest_pad = pad
                     closest_dist = distance
+            self.target_pad = closest_pad
         
         if agent.player.boost >= 80 or not self.target_pad.active:
             self.expired = True

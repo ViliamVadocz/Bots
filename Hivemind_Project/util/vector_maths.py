@@ -7,3 +7,6 @@ def three_vec3_to_mat3(f: vec3, l: vec3, u: vec3) -> mat3:
 
 def dist(a, b):
     return norm(a - b)
+
+def flat(a: vec3):
+    return a - vec3(0, 0, a[2])

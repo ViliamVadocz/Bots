@@ -6,18 +6,27 @@ from rlbot.utils.structures.bot_input_struct import PlayerInput
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.utils.structures.ball_prediction_struct import BallPrediction
 
-from rlutilities.linear_algebra import vec3, dot, norm, normalize
-from rlutilities.mechanics import Drive
+from rlutilities.linear_algebra import vec2, vec3, dot, norm, normalize, look_at, angle_between
+from rlutilities.mechanics import Drive, AerialTurn
 from rlutilities.simulation import Game
 
 from util.drone import Drone
-from util.general import team_sign
+from util.general import team_sign, to_player_input
 from util.goal_detector import find_future_goal
+from util.vector_maths import dist, flat
 
 from manoeuvres.recovery import Recovery
 from manoeuvres.half_flip import HalfFlip
 from manoeuvres.aerial import Aerial
 from manoeuvres.slow_to_pos import SlowToPos
+
+
+RIGHT_POS = vec3(-900, -4900, 0)
+MIDDLE_POS = vec3(0, -5300, 0)
+LEFT_POS = vec3(900, -4900, 0)
+DEFENCE_POSITIONS = [RIGHT_POS, MIDDLE_POS, LEFT_POS]
+IN_FRONT_OF_OWN_GOAL = vec3(0, -5000, 0)
+
 
 class Overmind(PythonHivemind):
 
@@ -29,7 +38,6 @@ class Overmind(PythonHivemind):
         my_index = next(iter(self.drone_indices))
         self.team = packet.game_cars[my_index].team
         self.sign = team_sign(self.team)
-        self.phase = Phase.RESET
 
         # Create Drone objects for each drone.
         self.drones = [Drone(index) for index in self.drone_indices]
@@ -44,17 +52,26 @@ class Overmind(PythonHivemind):
         # Initialise all mechanics.
         for drone in self.drones:
             car = self.game.cars[drone.index]
-            drone.recovery = Recovery(car)
-            drone.half_flip = HalfFlip(car)
-            drone.aerial = Aerial(car, vec3(0,0,0), 0, 0)
-            drone.drive = Drive(car)
-            drone.slow_to_pos = SlowToPos(car, vec3(0,0,0))
+            drone.recovery = None
+            drone.half_flip = None
+            drone.aerial = None
+            drone.slow_to_pos = None
+            drone.aerial_turn = AerialTurn(car)
             drone.car = car
 
     def get_outputs(self, packet: GameTickPacket) -> Dict[int, PlayerInput]:
 
         self.update_game(packet)
         dt = self.game.time_delta
+
+        # Handle time on ground.
+        for drone in self.drones:
+            if drone.car.on_ground:
+                drone.time_on_ground += dt
+                drone.time_off_ground = 0.0
+            else:
+                drone.time_on_ground = 0.0
+                drone.time_off_ground += dt
 
         # Ball prediction.
         ball_prediction: BallPrediction = self.get_ball_prediction_struct()
@@ -68,32 +85,61 @@ class Overmind(PythonHivemind):
         for drone in self.drones:
             drone.controls = PlayerInput()        
         
-        # Drive to position.
-        if self.phase == Phase.RESET:
-            self.drones.sort(key=lambda drone: drone.car.position[0])
-            self.right = self.drones[0]
-            self.middle = self.drones[1]
-            self.left = self.drones[2]
-            
-            self.right.slow_to_pos.target = self.sign * vec3(-900, -4900, 0)
-            self.middle.slow_to_pos.target = self.sign * vec3(0, -5300, 0)
-            self.left.slow_to_pos.target = self.sign * vec3(900, -4900, 0)
+        # Sort drones right to left.
+        self.drones.sort(key=lambda drone: self.sign * drone.car.position[0])
 
-            finished = True
-            for drone in self.drones:
-                drone.slow_to_pos.step(dt)
-                drone.controls = to_player_input(drone.slow_to_pos.controls)
-                if not drone.slow_to_pos.finished:
-                    finished = False
-
-            # if finished:
-            #     self.phase = Phase.ORIENT
-
-        # Face correct directions.
-        elif self.phase == Phase.ORIENT:
+        if needs_saving:
+            # TODO
             pass
 
-                
+        # Go back to goal.
+        for i, drone in enumerate(self.drones):
+            drone.ready = False
+            defence_pos = DEFENCE_POSITIONS[i] * self.sign
+            if drone.slow_to_pos is None:
+                drone.slow_to_pos = SlowToPos(drone.car, defence_pos)
+
+            if dist(drone.car.position, defence_pos) > 200:
+                # Recovery.
+                if drone.time_on_ground < 0.2 and drone.slow_to_pos.half_flip is None:
+                    if drone.recovery is None:
+                        drone.recovery = Recovery(drone.car)
+                    drone.recovery.step(dt)
+                    drone.controls = to_player_input(drone.recovery.controls)
+
+                # Go to pos.
+                else:
+                    if drone.recovery is not None:
+                        drone.recovery = None
+                    
+                    drone.slow_to_pos.target = defence_pos
+                    drone.slow_to_pos.step(dt)
+                    drone.controls = to_player_input(drone.slow_to_pos.controls)
+
+            else:
+                # If speed is low, jump and turn.
+                speed_2D = norm(vec2(drone.car.velocity))
+                if speed_2D < 100:
+                    car_to_look_pos = flat(self.sign * IN_FRONT_OF_OWN_GOAL - drone.car.position)
+
+                    if angle_between(drone.car.forward(), normalize(car_to_look_pos)) > 0.4:
+                        if drone.car.jumped and drone.time_off_ground < 0.03:
+                            drone.controls.jump = True
+                        elif drone.time_on_ground > 0.2:
+                            drone.controls.jump = True
+                        else:
+                            drone.aerial_turn.target = look_at(car_to_look_pos, vec3(0, 0, 1))
+                            drone.aerial_turn.step(dt)
+                            drone.controls = to_player_input(drone.aerial_turn.controls)
+
+                    else:
+                        drone.ready = True
+
+                # Go to pos.
+                else:
+                    drone.slow_to_pos.target = defence_pos
+                    drone.slow_to_pos.step(dt)
+                    drone.controls = to_player_input(drone.slow_to_pos.controls)
 
         # if car.boost < 20:
         #     if drone.drive is None:
@@ -112,27 +158,3 @@ class Overmind(PythonHivemind):
 
     def make_drone_controls_dict(self) -> Dict[int, PlayerInput]:
         return {drone.index: drone.controls for drone in self.drones}
-
-
-def to_player_input(controls) -> PlayerInput:
-    """Convert controls to PlayerInput"""
-    player_input = PlayerInput()
-    player_input.throttle = controls.throttle
-    player_input.steer = controls.steer
-    player_input.pitch = controls.pitch
-    player_input.yaw = controls.yaw
-    player_input.roll = controls.roll
-    player_input.jump = controls.jump
-    player_input.boost = controls.boost
-    player_input.handbrake = controls.handbrake
-    # RLUtilities Input does not have a use_item attribute.
-    if hasattr(controls, "use_item"):
-        player_input.use_item = controls.use_item
-
-    return player_input
-
-
-class Phase(Enum):
-    RESET = 0
-    ORIENT = 1
-    SAVE = 2

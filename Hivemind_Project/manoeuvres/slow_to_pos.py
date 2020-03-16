@@ -21,7 +21,6 @@ class SlowToPos(Manoeuvre):
     def step(self, dt: float):
 
         if self.half_flip is not None:
-            print('flip')
             self.half_flip.step(dt)
             self.controls = to_player_input(self.half_flip.controls)
             if self.half_flip.finished:

@@ -5,6 +5,7 @@ from rlbot.agents.hivemind.python_hivemind import PythonHivemind
 from rlbot.utils.structures.bot_input_struct import PlayerInput
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.utils.structures.ball_prediction_struct import BallPrediction
+from rlbot.utils.rendering.rendering_manager import RenderingManager
 
 from rlutilities.linear_algebra import vec2, vec3, dot, norm, normalize, look_at, angle_between
 from rlutilities.mechanics import Drive, AerialTurn
@@ -20,7 +21,6 @@ from manoeuvres.half_flip import HalfFlip
 from manoeuvres.aerial import Aerial
 from manoeuvres.slow_to_pos import SlowToPos
 
-
 RIGHT_POS = vec3(-900, -4900, 0)
 MIDDLE_POS = vec3(0, -5300, 0)
 LEFT_POS = vec3(900, -4900, 0)
@@ -29,8 +29,15 @@ IN_FRONT_OF_OWN_GOAL = vec3(0, -5000, 0)
 
 
 class Overmind(PythonHivemind):
+    verbose = True
 
     def initialize_hive(self, packet: GameTickPacket) -> None:
+        if self.verbose:
+            self.logger.setLevel("DEBUG")
+        else:
+            self.logger.setLevel("ERROR")
+
+
         self.logger.info('The Swarm Awakens...')
 
         # Find out team by looking at packet.
@@ -81,6 +88,9 @@ class Overmind(PythonHivemind):
             if future_goal.team == self.team:
                 needs_saving = True
 
+        if self.verbose:
+            self.render_ball_prediction(ball_prediction)
+
         # Reset controls.
         for drone in self.drones:
             drone.controls = PlayerInput()        
@@ -89,8 +99,17 @@ class Overmind(PythonHivemind):
         self.drones.sort(key=lambda drone: self.sign * drone.car.position[0])
 
         if needs_saving:
-            # TODO
-            pass
+            if self.verbose:
+                self.render_target(future_goal.position)
+
+            going = None
+            for drone in self.drones:
+                if drone.ready:
+                    # TODO Calculate soonest intercept for each drone
+                    pass
+
+            # if still nothing, consider not ready.
+
 
         # Go back to goal.
         for i, drone in enumerate(self.drones):
@@ -122,15 +141,13 @@ class Overmind(PythonHivemind):
                 if speed_2D < 100:
                     car_to_look_pos = flat(self.sign * IN_FRONT_OF_OWN_GOAL - drone.car.position)
 
-                    if angle_between(drone.car.forward(), normalize(car_to_look_pos)) > 0.4:
-                        if drone.car.jumped and drone.time_off_ground < 0.03:
+                    drone.aerial_turn.target = look_at(car_to_look_pos, vec3(0, 0, 1))
+                    drone.aerial_turn.step(dt)
+                    drone.controls = to_player_input(drone.aerial_turn.controls)
+
+                    if angle_between(drone.car.forward(), normalize(car_to_look_pos)) > 0.3:
+                        if drone.time_on_ground > 0.2 or (drone.car.jumped and drone.time_off_ground < 0.05):
                             drone.controls.jump = True
-                        elif drone.time_on_ground > 0.2:
-                            drone.controls.jump = True
-                        else:
-                            drone.aerial_turn.target = look_at(car_to_look_pos, vec3(0, 0, 1))
-                            drone.aerial_turn.step(dt)
-                            drone.controls = to_player_input(drone.aerial_turn.controls)
 
                     else:
                         drone.ready = True
@@ -140,13 +157,6 @@ class Overmind(PythonHivemind):
                     drone.slow_to_pos.target = defence_pos
                     drone.slow_to_pos.step(dt)
                     drone.controls = to_player_input(drone.slow_to_pos.controls)
-
-        # if car.boost < 20:
-        #     if drone.drive is None:
-        #         drone.drive = Drive(car)
-        #         drone.drive.target = 
-        #         drone.drive.step(dt)
-        #         drone.controls = to_player_input(drone.drive.controls)
 
         return self.make_drone_controls_dict()
 
@@ -158,3 +168,16 @@ class Overmind(PythonHivemind):
 
     def make_drone_controls_dict(self) -> Dict[int, PlayerInput]:
         return {drone.index: drone.controls for drone in self.drones}
+
+
+    def render_ball_prediction(self, ball_prediction: BallPrediction):
+        r: RenderingManager = self.renderer
+        r.begin_rendering(f"{self} - ball prediction")
+        r.draw_polyline_3d([step.physics.location for step in ball_prediction.slices[:ball_prediction.num_slices:20]], r.cyan())
+        r.end_rendering()
+
+    def render_target(self, target):
+        r: RenderingManager = self.renderer
+        r.begin_rendering(f"{self} - target {target}")
+        r.draw_rect_3d(target, 10, 10, True, r.red())
+        r.end_rendering()

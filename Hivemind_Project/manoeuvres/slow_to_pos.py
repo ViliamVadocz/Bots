@@ -45,21 +45,21 @@ class SlowToPos(Manoeuvre):
                 self.finished = False
 
                 # A simple PD controller to stop at target.
-                if distance > 800:
+                if distance > 700:
                     throttle_magnitude = 1.0
                 else:
-                    throttle_magnitude = clamp(0.3*distance - 0.1*speed, -1.0, 1.0)
+                    throttle_magnitude = clamp(0.2*(distance - speed), -1.0, 1.0)
 
                 # Going backwards.
                 if forward_speed < 1600 and absolute_angle > 2.5:
                     # Rotates angle pi radians to face backwards.
                     adjusted_angle = pi - angle if angle > 0.0 else -(pi + angle)
-                    self.controls.throttle = -throttle_magnitude
+                    self.controls.throttle = -throttle_magnitude if forward_speed < 0 else -1
                     self.controls.handbrake = abs(adjusted_angle) > 1.7
                     self.controls.steer = angle_to_steer(adjusted_angle)
 
                     # Half-flip triggers once going fast enough backwards.
-                    if forward_speed < -500 and distance > 800:
+                    if forward_speed < -500 and distance > 1500:
                         self.half_flip = HalfFlip(self.car)
 
                 else:

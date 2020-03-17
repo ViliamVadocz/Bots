@@ -16,7 +16,7 @@ COARSE_SEARCH_INCREMENT = 20
 
 @dataclass
 class FutureGoal:
-    location: vec3
+    position: vec3
     velocity: vec3
     time: float
     team: int
